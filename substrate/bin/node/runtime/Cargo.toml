@@ -28,11 +28,14 @@ sp-debug-derive = { workspace = true, features = ["force-debug"] }
 static_assertions = { workspace = true, default-features = true }
 wasm-bindgen = { version = "0.2.100", features = ["std"] }
 
+#third-party-dependencies
+
+
 # primitive-types: turn on "num-traits" feature
 primitive-types = { features = ["codec", "num-traits", "scale-info"], workspace = true }
 
 # Core Substrate dependencies
-frame-support = { workspace = true, features = ["std"] }
+frame-support = { workspace = true, features = ["tuples-96"] }
 frame-system = { workspace = true, features = ["std"] }
 frame-system-rpc-runtime-api = { workspace = true, features = ["std"] }
 frame-executive = { workspace = true, features = ["std"] }
@@ -64,6 +67,8 @@ sp-authority-discovery = { workspace = true, features = ["std"] }
 sp-genesis-builder = { workspace = true, features = ["std"] }
 sp-keyring = { workspace = true, features = ["std"] }
 
+sp-mixnet = { workspace = true }
+
 # Pallet dependencies
 pallet-aura = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
@@ -80,6 +85,10 @@ pallet-mmr = { workspace = true, features = ["std"] }
 pallet-parameters = { workspace = true, features = ["std"] }
 pallet-referenda = { workspace = true, features = ["std"] }
 pallet-state-trie-migration = { workspace = true, features = ["std"] }
+pallet-asset-conversion = { workspace = true, features = ["std"] }
+
+pallet-alliance = { workspace = true, features = ["std"] }
+pallet-asset-tx-payment = { workspace = true, features = ["std"] }
 
 # shared code between runtime and node
 node-primitives = { path = "../primitives", default-features = false }
@@ -90,6 +99,7 @@ pallet-example-tasks = { workspace = true }
 
 [build-dependencies]
 substrate-wasm-builder = { optional = true, workspace = true }
+substrate-build-script-utils = { workspace = true }
 
 [features]
 default = ["std"]
@@ -127,6 +137,8 @@ std = [
 	"sp-authority-discovery/std",
 	"sp-genesis-builder/std",
 	"sp-keyring/std",
+
+	"sp-mixnet/std",
 	"pallet-aura/std",
 	"pallet-balances/std",
 	"pallet-grandpa/std",
@@ -142,6 +154,10 @@ std = [
 	"pallet-parameters/std",
 	"pallet-referenda/std",
 	"pallet-state-trie-migration/std",
+	"pallet-asset-conversion/std",
+	
+	"pallet-alliance/std",
+	"pallet-asset-tx-payment/std",
 	"node-primitives/std",
 	"pallet-example-mbm/std",
 	"pallet-example-tasks/std",

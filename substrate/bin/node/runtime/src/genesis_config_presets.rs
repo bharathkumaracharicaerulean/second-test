@@ -17,13 +17,10 @@
 
 //! Genesis Presets for the Kitchensink Runtime
 
-use sc_cli::*;
+// use sc_cli::*;
 
 use crate::{
-	constants::currency::*, frame_support::build_struct_json_patch, AccountId, AssetsConfig,
-	BabeConfig, Balance, BalancesConfig, ElectionsConfig, NominationPoolsConfig,
-	RuntimeGenesisConfig, SessionConfig, SessionKeys, SocietyConfig, StakerStatus, StakingConfig,
-	SudoConfig, TechnicalCommitteeConfig, BABE_GENESIS_EPOCH_CONFIG,
+	constants::currency::*, AccountId, Balance, SessionKeys, StakerStatus, BABE_GENESIS_EPOCH_CONFIG,
 };
 use alloc::{vec, vec::Vec};
 use pallet_im_online::sr25519::AuthorityId as ImOnlineId;
@@ -66,46 +63,46 @@ pub fn kitchensink_genesis(
 
 	let collective = collective(&endowed_accounts);
 
-	build_struct_json_patch!(RuntimeGenesisConfig {
-		balances: BalancesConfig {
-			balances: endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect(),
-			..Default::default()
-		},
-		session: SessionConfig {
-			keys: initial_authorities
-				.iter()
-				.map(|x| { (x.0.clone(), x.1.clone(), x.2.clone()) })
-				.collect(),
-		},
-		staking: StakingConfig {
-			validator_count,
-			minimum_validator_count: min_validator_count,
-			invulnerables: initial_authorities
-				.iter()
-				.map(|x| x.0.clone())
-				.collect::<Vec<_>>()
-				.try_into()
-				.expect("Too many invulnerable validators: upper limit is MaxInvulnerables from pallet staking config"),
-			slash_reward_fraction: Perbill::from_percent(10),
-			stakers,
-		},
-		elections: ElectionsConfig {
-			members: collective.iter().cloned().map(|member| (member, STASH)).collect(),
-		},
-		technical_committee: TechnicalCommitteeConfig { members: collective },
-		sudo: SudoConfig { key: Some(root_key) },
-		babe: BabeConfig { epoch_config: BABE_GENESIS_EPOCH_CONFIG },
-		society: SocietyConfig { pot: 0 },
-		assets: AssetsConfig {
-			// This asset is used by the NIS pallet as counterpart currency.
-			assets: vec![(9, Sr25519Keyring::Alice.to_account_id(), true, 1)],
-			..Default::default()
-		},
-		nomination_pools: NominationPoolsConfig {
-			min_create_bond: 10 * DOLLARS,
-			min_join_bond: 1 * DOLLARS,
-		},
-	})
+	// build_struct_json_patch!(RuntimeGenesisConfig {
+	// 	balances: BalancesConfig {
+	// 		balances: endowed_accounts.iter().cloned().map(|x| (x, ENDOWMENT)).collect(),
+	// 		..Default::default()
+	// 	},
+	// 	session: SessionConfig {
+	// 		keys: initial_authorities
+	// 			.iter()
+	// 			.map(|x| { (x.0.clone(), x.1.clone(), x.2.clone()) })
+	// 			.collect(),
+	// 	},
+	// 	staking: StakingConfig {
+	// 		validator_count,
+	// 		minimum_validator_count: min_validator_count,
+	// 		invulnerables: initial_authorities
+	// 			.iter()
+	// 			.map(|x| x.0.clone())
+	// 			.collect::<Vec<_>>()
+	// 			.try_into()
+	// 			.expect("Too many invulnerable validators: upper limit is MaxInvulnerables from pallet staking config"),
+	// 		slash_reward_fraction: Perbill::from_percent(10),
+	// 		stakers,
+	// 	},
+	// 	elections: ElectionsConfig {
+	// 		members: collective.iter().cloned().map(|member| (member, STASH)).collect(),
+	// 	},
+	// 	technical_committee: TechnicalCommitteeConfig { members: collective },
+	// 	sudo: SudoConfig { key: Some(root_key) },
+	// 	babe: BabeConfig { epoch_config: BABE_GENESIS_EPOCH_CONFIG },
+	// 	society: SocietyConfig { pot: 0 },
+	// 	assets: AssetsConfig {
+	// 		// This asset is used by the NIS pallet as counterpart currency.
+	// 		assets: vec![(9, Sr25519Keyring::Alice.to_account_id(), true, 1)],
+	// 		..Default::default()
+	// 	},
+	// 	nomination_pools: NominationPoolsConfig {
+	// 		min_create_bond: 10 * DOLLARS,
+	// 		min_join_bond: 1 * DOLLARS,
+	// 	},
+	// })
 }
 
 /// Provides the JSON representation of predefined genesis config for given `id`.

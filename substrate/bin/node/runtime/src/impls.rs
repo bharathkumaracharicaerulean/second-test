@@ -28,11 +28,11 @@ use frame_support::{
 use pallet_alliance::{IdentityVerifier, ProposalIndex, ProposalProvider};
 use pallet_asset_tx_payment::HandleCredit;
 use pallet_identity::legacy::IdentityField;
-use sc_cli::*;
+// use sc_cli::*;
 
 use crate::{
-	AccountId, AllianceCollective, AllianceMotion, Assets, Authorship, Balances, Hash,
-	NegativeImbalance, Runtime, RuntimeCall,
+	AccountId, AllianceCollective, Hash,
+	NegativeImbalance,
 };
 
 pub struct Author;
@@ -109,7 +109,8 @@ impl ProposalProvider<AccountId, Hash, RuntimeCall> for AllianceProposalProvider
 	}
 
 	fn proposal_of(proposal_hash: Hash) -> Option<RuntimeCall> {
-		pallet_collective::ProposalOf::<Runtime, AllianceCollective>::get(proposal_hash)
+		// pallet_collective::ProposalOf::<Runtime, AllianceCollective>::get(proposal_hash)
+		None
 	}
 }
 

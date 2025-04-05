@@ -5767,6 +5767,9 @@ dependencies = [
  "getrandom 0.2.15",
  "log",
  "node-primitives",
+ "pallet-alliance",
+ "pallet-asset-conversion",
+ "pallet-asset-tx-payment",
  "pallet-aura",
  "pallet-balances",
  "pallet-example-mbm",
@@ -5806,6 +5809,7 @@ dependencies = [
  "sp-inherents",
  "sp-io",
  "sp-keyring",
+ "sp-mixnet",
  "sp-runtime",
  "sp-session",
  "sp-state-machine",
@@ -5816,6 +5820,7 @@ dependencies = [
  "sp-version",
  "sp-weights",
  "static_assertions",
+ "substrate-build-script-utils",
  "substrate-wasm-builder",
  "wasm-bindgen",
 ]
@@ -15564,6 +15569,8 @@ dependencies = [
  "tokio",
  "tokio-util",
  "wat",
+ "xcm",
+ "xcm-builder",
 ]
 
 [[package]]
@@ -18554,6 +18561,18 @@ dependencies = [
  "libc",
  "rustix 1.0.5",
 ]
+
+[[package]]
+name = "xcm"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "47a357d8b5946abbdcff03fcd7c3ba97bbb7741520118aebb5f0411d807d4492"
+
+[[package]]
+name = "xcm-builder"
+version = "0.0.1"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "702ae5fb4fce7536207691e333456afd322045552afb5d72d1a144b164a5b484"
 
 [[package]]
 name = "xml-rs"

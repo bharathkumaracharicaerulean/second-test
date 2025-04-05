@@ -17,7 +17,7 @@
 
 //! Runtime API definition for assets.
 
-use sc_cli::*;
+// use sc_cli::*;
 
 use alloc::vec::Vec;
 use codec::Codec;
