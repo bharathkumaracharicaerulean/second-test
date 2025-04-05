@@ -5758,60 +5758,24 @@ checksum = "c33070833c9ee02266356de0c43f723152bd38bd96ddf52c82b3af10c9138b28"
 name = "kitchensink-runtime"
 version = "3.0.0-dev"
 dependencies = [
- "array-bytes",
- "frame-election-provider-support",
  "frame-executive",
  "frame-support",
  "frame-system",
- "frame-system-rpc-runtime-api",
  "getrandom 0.2.15",
- "log",
  "node-primitives",
- "pallet-alliance",
- "pallet-asset-conversion",
- "pallet-asset-tx-payment",
- "pallet-aura",
  "pallet-balances",
- "pallet-example-mbm",
- "pallet-example-tasks",
- "pallet-grandpa",
- "pallet-identity",
- "pallet-im-online",
- "pallet-insecure-randomness-collective-flip",
- "pallet-mmr",
- "pallet-parameters",
- "pallet-referenda",
- "pallet-session",
- "pallet-staking",
- "pallet-staking-reward-curve",
- "pallet-staking-reward-fn",
- "pallet-staking-runtime-api",
- "pallet-state-trie-migration",
  "pallet-sudo",
  "pallet-timestamp",
- "pallet-transaction-payment",
- "pallet-utility",
  "parity-scale-codec",
- "primitive-types 0.13.1",
  "scale-info",
- "serde_json",
  "sp-api",
- "sp-authority-discovery",
  "sp-block-builder",
- "sp-consensus-aura",
- "sp-consensus-babe",
- "sp-consensus-beefy",
- "sp-consensus-grandpa",
  "sp-core 28.0.0",
  "sp-debug-derive 14.0.0",
  "sp-externalities 0.25.0",
- "sp-genesis-builder",
  "sp-inherents",
  "sp-io",
- "sp-keyring",
- "sp-mixnet",
  "sp-runtime",
- "sp-session",
  "sp-state-machine",
  "sp-std 14.0.0",
  "sp-storage 19.0.0",
@@ -5822,7 +5786,6 @@ dependencies = [
  "static_assertions",
  "substrate-build-script-utils",
  "substrate-wasm-builder",
- "wasm-bindgen",
 ]
 
 [[package]]
@@ -15569,8 +15532,6 @@ dependencies = [
  "tokio",
  "tokio-util",
  "wat",
- "xcm",
- "xcm-builder",
 ]
 
 [[package]]
@@ -18561,18 +18522,6 @@ dependencies = [
  "libc",
  "rustix 1.0.5",
 ]
-
-[[package]]
-name = "xcm"
-version = "0.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "47a357d8b5946abbdcff03fcd7c3ba97bbb7741520118aebb5f0411d807d4492"
-
-[[package]]
-name = "xcm-builder"
-version = "0.0.1"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "702ae5fb4fce7536207691e333456afd322045552afb5d72d1a144b164a5b484"
 
 [[package]]
 name = "xml-rs"

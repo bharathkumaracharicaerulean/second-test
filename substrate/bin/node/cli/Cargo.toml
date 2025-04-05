@@ -73,8 +73,7 @@ node-rpc = { path = "../rpc", default-features = false }
 
 # These testing-only dependencies are not exported by the Polkadot-SDK crate:
 sc-service-test = { path = "../../../client/service/test", default-features = false }
-xcm = "0.0.1"
-xcm-builder = "0.0.1"
+
 
 [dev-dependencies]
 assert_cmd = { workspace = true }

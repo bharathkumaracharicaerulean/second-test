@@ -19,7 +19,7 @@
 
 // use sc_cli::*;
 
-use alloc::vec::Vec;
+use sp_std::vec::Vec;
 use codec::Codec;
 
 sp_api::decl_runtime_apis! {

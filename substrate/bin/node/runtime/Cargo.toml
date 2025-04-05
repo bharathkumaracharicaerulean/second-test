@@ -18,40 +18,23 @@ targets = ["x86_64-unknown-linux-gnu"]
 
 [dependencies]
 # third-party dependencies
-array-bytes = { workspace = true }
 codec = { features = ["derive", "max-encoded-len"], workspace = true }
-getrandom = { version = "0.2.12", features = ["std"] }
-log = { workspace = true }
 scale-info = { features = ["derive", "serde"], workspace = true }
-serde_json = { features = ["alloc", "arbitrary_precision"], workspace = true }
 sp-debug-derive = { workspace = true, features = ["force-debug"] }
-static_assertions = { workspace = true, default-features = true }
-wasm-bindgen = { version = "0.2.100", features = ["std"] }
-
-#third-party-dependencies
-
-
-# primitive-types: turn on "num-traits" feature
-primitive-types = { features = ["codec", "num-traits", "scale-info"], workspace = true }
+static_assertions = { workspace = true }
+getrandom = { version = "0.2", features = ["js"] }
 
 # Core Substrate dependencies
 frame-support = { workspace = true, features = ["tuples-96"] }
 frame-system = { workspace = true, features = ["std"] }
-frame-system-rpc-runtime-api = { workspace = true, features = ["std"] }
 frame-executive = { workspace = true, features = ["std"] }
-frame-election-provider-support = { workspace = true, features = ["std"] }
-pallet-staking = { workspace = true, features = ["std"] }
-pallet-staking-reward-curve = { workspace = true }
-pallet-staking-reward-fn = { workspace = true, features = ["std"] }
-pallet-staking-runtime-api = { workspace = true, features = ["std"] }
 sp-runtime = { workspace = true, features = ["std"] }
 sp-core = { workspace = true, features = ["std"] }
 sp-std = { workspace = true, features = ["std"] }
-sp-io = { workspace = true, features = ["std"] }
+sp-io = { workspace = true, features = ["std", "wasm_only"] }
 sp-api = { workspace = true, features = ["std"] }
 sp-block-builder = { workspace = true, features = ["std"] }
 sp-inherents = { workspace = true, features = ["std"] }
-sp-session = { workspace = true, features = ["std"] }
 sp-version = { workspace = true, features = ["std"] }
 sp-weights = { workspace = true, features = ["std"] }
 sp-storage = { workspace = true, features = ["std"] }
@@ -59,123 +42,60 @@ sp-trie = { workspace = true, features = ["std"] }
 sp-state-machine = { workspace = true, features = ["std"] }
 sp-externalities = { workspace = true, features = ["std"] }
 sp-timestamp = { workspace = true, features = ["std"] }
-sp-consensus-aura = { workspace = true, features = ["std"] }
-sp-consensus-grandpa = { workspace = true, features = ["std"] }
-sp-consensus-babe = { workspace = true, features = ["std"] }
-sp-consensus-beefy = { workspace = true, features = ["std"] }
-sp-authority-discovery = { workspace = true, features = ["std"] }
-sp-genesis-builder = { workspace = true, features = ["std"] }
-sp-keyring = { workspace = true, features = ["std"] }
-
-sp-mixnet = { workspace = true }
 
 # Pallet dependencies
-pallet-aura = { workspace = true, features = ["std"] }
 pallet-balances = { workspace = true, features = ["std"] }
-pallet-grandpa = { workspace = true, features = ["std"] }
-pallet-insecure-randomness-collective-flip = { workspace = true, features = ["std"] }
-pallet-session = { workspace = true, features = ["std"] }
 pallet-timestamp = { workspace = true, features = ["std"] }
-pallet-transaction-payment = { workspace = true, features = ["std"] }
-pallet-utility = { workspace = true, features = ["std"] }
 pallet-sudo = { workspace = true, features = ["std"] }
-pallet-identity = { workspace = true, features = ["std"] }
-pallet-im-online = { workspace = true, features = ["std"] }
-pallet-mmr = { workspace = true, features = ["std"] }
-pallet-parameters = { workspace = true, features = ["std"] }
-pallet-referenda = { workspace = true, features = ["std"] }
-pallet-state-trie-migration = { workspace = true, features = ["std"] }
-pallet-asset-conversion = { workspace = true, features = ["std"] }
-
-pallet-alliance = { workspace = true, features = ["std"] }
-pallet-asset-tx-payment = { workspace = true, features = ["std"] }
 
 # shared code between runtime and node
 node-primitives = { path = "../primitives", default-features = false }
 
-# Example pallets that are not published:
-pallet-example-mbm = { workspace = true }
-pallet-example-tasks = { workspace = true }
-
 [build-dependencies]
-substrate-wasm-builder = { optional = true, workspace = true }
+substrate-wasm-builder = { workspace = true }
 substrate-build-script-utils = { workspace = true }
 
 [features]
 default = ["std"]
 std = [
-	"codec/std",
-	"getrandom/std",
-	"log/std",
-	"frame-support/std",
-	"frame-system/std",
-	"frame-system-rpc-runtime-api/std",
-	"frame-executive/std",
-	"frame-election-provider-support/std",
-	"pallet-staking/std",
-	"pallet-staking-reward-fn/std",
-	"pallet-staking-runtime-api/std",
-	"sp-runtime/std",
-	"sp-core/std",
-	"sp-std/std",
-	"sp-io/std",
-	"sp-api/std",
-	"sp-block-builder/std",
-	"sp-inherents/std",
-	"sp-session/std",
-	"sp-version/std",
-	"sp-weights/std",
-	"sp-storage/std",
-	"sp-trie/std",
-	"sp-state-machine/std",
-	"sp-externalities/std",
-	"sp-timestamp/std",
-	"sp-consensus-aura/std",
-	"sp-consensus-grandpa/std",
-	"sp-consensus-babe/std",
-	"sp-consensus-beefy/std",
-	"sp-authority-discovery/std",
-	"sp-genesis-builder/std",
-	"sp-keyring/std",
+    "codec/std",
+    "frame-support/std",
+    "frame-system/std",
+    "frame-executive/std",
+    "sp-runtime/std",
+    "sp-core/std",
+    "sp-std/std",
+    "sp-io/std",
+    "sp-api/std",
+    "sp-block-builder/std",
+    "sp-inherents/std",
+    "sp-version/std",
+    "sp-weights/std",
+    "sp-storage/std",
+    "sp-trie/std",
+    "sp-state-machine/std",
+    "sp-externalities/std",
+    "sp-timestamp/std",
+    "pallet-balances/std",
+    "pallet-timestamp/std",
+    "pallet-sudo/std",
+    "node-primitives/std",
+    "scale-info/std",
+    "sp-debug-derive/std"
+]
 
-	"sp-mixnet/std",
-	"pallet-aura/std",
-	"pallet-balances/std",
-	"pallet-grandpa/std",
-	"pallet-insecure-randomness-collective-flip/std",
-	"pallet-session/std",
-	"pallet-timestamp/std",
-	"pallet-transaction-payment/std",
-	"pallet-utility/std",
-	"pallet-sudo/std",
-	"pallet-identity/std",
-	"pallet-im-online/std",
-	"pallet-mmr/std",
-	"pallet-parameters/std",
-	"pallet-referenda/std",
-	"pallet-state-trie-migration/std",
-	"pallet-asset-conversion/std",
-	
-	"pallet-alliance/std",
-	"pallet-asset-tx-payment/std",
-	"node-primitives/std",
-	"pallet-example-mbm/std",
-	"pallet-example-tasks/std",
-	"primitive-types/std",
-	"scale-info/std",
-	"serde_json/std",
-	"sp-debug-derive/std",
-	"substrate-wasm-builder",
-]
 runtime-benchmarks = [
-	"frame-support/runtime-benchmarks",
-	"frame-system/runtime-benchmarks",
-	"pallet-balances/runtime-benchmarks",
+    "frame-support/runtime-benchmarks",
+    "frame-system/runtime-benchmarks",
+    "pallet-balances/runtime-benchmarks",
+    "pallet-timestamp/runtime-benchmarks",
+    "pallet-sudo/runtime-benchmarks"
 ]
+
 try-runtime = [
-	"frame-executive/try-runtime",
-	"frame-system/try-runtime",
-	"pallet-balances/try-runtime",
+    "frame-executive/try-runtime",
+    "frame-system/try-runtime",
+    "pallet-balances/try-runtime",
+    "pallet-timestamp/try-runtime",
+    "pallet-sudo/try-runtime"
 ]
-experimental = []
-metadata-hash = ["substrate-wasm-builder/metadata-hash"]

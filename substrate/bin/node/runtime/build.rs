@@ -15,15 +15,14 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(all(feature = "std", not(feature = "metadata-hash")))]
+#[cfg(feature = "std")]
 fn main() {
-	substrate_wasm_builder::WasmBuilder::build_using_defaults()
-}
-
-#[cfg(all(feature = "std", feature = "metadata-hash"))]
-fn main() {
-	substrate_wasm_builder::WasmBuilder::init_with_defaults()
-		.enable_metadata_hash("Test", 14)
+	substrate_wasm_builder::WasmBuilder::new()
+		.with_wasm_builder_source(substrate_wasm_builder::WasmBuilderSource::Crates("1.0.0"))
+		.with_current_project()
+		.with_wasm_target("wasm32-unknown-unknown")
+		.export_heap_base()
+		.import_memory()
 		.build()
 }
 
