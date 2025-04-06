@@ -47,7 +47,7 @@ pallet-balances = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
 
 # shared code between runtime and node
-node-primitives = { path = "../primitives", default-features = false }
+node-primitives = { path = "../bin/node/primitives", default-features = false }
 
 [build-dependencies]
 substrate-wasm-builder = { workspace = true }
