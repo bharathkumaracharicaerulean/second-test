@@ -15,16 +15,12 @@
 // See the License for the specific language governing permissions and
 // limitations under the License.
 
-#[cfg(feature = "std")]
+use substrate_wasm_builder::WasmBuilder;
+
 fn main() {
-	substrate_wasm_builder::WasmBuilder::new()
-		.with_wasm_builder_source(substrate_wasm_builder::WasmBuilderSource::Crates("1.0.0"))
+	WasmBuilder::new()
 		.with_current_project()
-		.with_wasm_target("wasm32-unknown-unknown")
 		.export_heap_base()
 		.import_memory()
 		.build()
 }
-
-#[cfg(not(feature = "std"))]
-fn main() {}

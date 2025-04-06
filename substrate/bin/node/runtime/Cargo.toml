@@ -22,31 +22,31 @@ codec = { features = ["derive", "max-encoded-len"], workspace = true }
 scale-info = { features = ["derive", "serde"], workspace = true }
 sp-debug-derive = { workspace = true, features = ["force-debug"] }
 static_assertions = { workspace = true }
-getrandom = { version = "0.2", features = ["js"] }
+getrandom = { version = "0.2", features = ["js"], optional = true }
 
 # Core Substrate dependencies
-frame-support = { workspace = true, features = ["tuples-96"] }
-frame-system = { workspace = true, features = ["std"] }
-frame-executive = { workspace = true, features = ["std"] }
-sp-runtime = { workspace = true, features = ["std"] }
-sp-core = { workspace = true, features = ["std"] }
-sp-std = { workspace = true, features = ["std"] }
-sp-io = { workspace = true, features = ["std", "wasm_only"] }
-sp-api = { workspace = true, features = ["std"] }
-sp-block-builder = { workspace = true, features = ["std"] }
-sp-inherents = { workspace = true, features = ["std"] }
-sp-version = { workspace = true, features = ["std"] }
-sp-weights = { workspace = true, features = ["std"] }
-sp-storage = { workspace = true, features = ["std"] }
-sp-trie = { workspace = true, features = ["std"] }
-sp-state-machine = { workspace = true, features = ["std"] }
-sp-externalities = { workspace = true, features = ["std"] }
-sp-timestamp = { workspace = true, features = ["std"] }
+frame-support = { workspace = true, default-features = false }
+frame-system = { workspace = true, default-features = false }
+frame-executive = { workspace = true, default-features = false }
+sp-runtime = { workspace = true, default-features = false }
+sp-core = { workspace = true, default-features = false }
+sp-std = { workspace = true, default-features = false }
+sp-io = { workspace = true, default-features = false }
+sp-api = { workspace = true, default-features = false }
+sp-block-builder = { workspace = true, default-features = false }
+sp-inherents = { workspace = true, default-features = false }
+sp-version = { workspace = true, default-features = false }
+sp-weights = { workspace = true, default-features = false }
+sp-storage = { workspace = true, default-features = false }
+sp-trie = { workspace = true, default-features = false }
+sp-state-machine = { workspace = true, default-features = false }
+sp-externalities = { workspace = true, default-features = false }
+sp-timestamp = { workspace = true, default-features = false }
+sp-transaction-pool = { workspace = true, default-features = false }
 
 # Pallet dependencies
-pallet-balances = { workspace = true, features = ["std"] }
-pallet-timestamp = { workspace = true, features = ["std"] }
-pallet-sudo = { workspace = true, features = ["std"] }
+pallet-balances = { workspace = true, default-features = false }
+pallet-timestamp = { workspace = true, default-features = false }
 
 # shared code between runtime and node
 node-primitives = { path = "../primitives", default-features = false }
@@ -78,24 +78,22 @@ std = [
     "sp-timestamp/std",
     "pallet-balances/std",
     "pallet-timestamp/std",
-    "pallet-sudo/std",
     "node-primitives/std",
     "scale-info/std",
-    "sp-debug-derive/std"
+    "sp-debug-derive/std",
+    "getrandom"
 ]
 
 runtime-benchmarks = [
     "frame-support/runtime-benchmarks",
     "frame-system/runtime-benchmarks",
     "pallet-balances/runtime-benchmarks",
-    "pallet-timestamp/runtime-benchmarks",
-    "pallet-sudo/runtime-benchmarks"
+    "pallet-timestamp/runtime-benchmarks"
 ]
 
 try-runtime = [
     "frame-executive/try-runtime",
     "frame-system/try-runtime",
     "pallet-balances/try-runtime",
-    "pallet-timestamp/try-runtime",
-    "pallet-sudo/try-runtime"
+    "pallet-timestamp/try-runtime"
 ]

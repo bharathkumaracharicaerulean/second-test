@@ -18,7 +18,6 @@
 //! The Substrate runtime. This can be compiled with `#[no_std]`, ready for Wasm.
 
 #![cfg_attr(not(feature = "std"), no_std)]
-// `construct_runtime!` does a lot of recursion and requires us to increase the limit to 256.
 #![recursion_limit = "256"]
 
 // Make the WASM binary available.
@@ -27,6 +26,12 @@ include!(concat!(env!("OUT_DIR"), "/wasm_binary.rs"));
 
 pub mod constants;
 pub mod impls;
+
+use sp_std::prelude::*;
+use sp_std::borrow::Cow;
+use sp_version::RuntimeVersion;
+#[cfg(feature = "std")]
+use sp_version::NativeVersion;
 
 use frame_support::{
 	construct_runtime, parameter_types,
@@ -40,7 +45,7 @@ use frame_support::{
 use sp_runtime::{
 	generic, impl_opaque_keys,
 	traits::{BlakeTwo256, IdentifyAccount, Verify, IdentityLookup},
-	MultiSignature,
+	MultiSignature, create_runtime_str,
 };
 use sp_std::prelude::*;
 use sp_std::borrow::Cow;
@@ -50,6 +55,32 @@ use sp_version::RuntimeVersion;
 
 pub use frame_support::weights::constants::RocksDbWeight;
 pub use sp_runtime::Permill;
+
+use sp_api::impl_runtime_apis;
+use sp_runtime::traits::Block as BlockT;
+use sp_block_builder::BlockBuilder;
+use sp_inherents::{InherentData, CheckInherentsResult};
+use sp_runtime::ApplyExtrinsicResult;
+use sp_runtime::transaction_validity::{TransactionSource, TransactionValidity};
+use sp_transaction_pool::runtime_api;
+use sp_runtime::ExtrinsicInclusionMode;
+use scale_info::prelude::*;
+use frame_executive as executive;
+use sp_std::vec::Vec;
+use sp_std::string::ToString;
+use sp_std::fmt;
+use sp_std::result;
+use sp_std::option;
+use sp_std::default;
+use sp_std::clone;
+use core::fmt;
+use core::result::Result;
+use core::option::Option;
+use core::default::Default;
+use core::clone::Clone;
+use core::mem;
+use core::cell::RefCell;
+use scale_info::prelude::string::String;
 
 /// An index to a block.
 pub type BlockNumber = u32;
@@ -103,13 +134,15 @@ pub mod opaque {
 	pub type BlockId = generic::BlockId<Block>;
 }
 
+/// This runtime version.
+#[sp_version::runtime_version]
 pub const VERSION: RuntimeVersion = RuntimeVersion {
-	spec_name: Cow::Borrowed("minimal"),
-	impl_name: Cow::Borrowed("minimal"),
+	spec_name: Cow::Borrowed("node"),
+	impl_name: Cow::Borrowed("substrate-node"),
 	authoring_version: 1,
-	spec_version: 1,
+	spec_version: 100,
 	impl_version: 1,
-	apis: Cow::Borrowed(&[]),
+	apis: RUNTIME_API_VERSIONS,
 	transaction_version: 1,
 	system_version: 1,
 };
@@ -232,19 +265,20 @@ impl pallet_timestamp::Config for Runtime {
 	type WeightInfo = ();
 }
 
-impl pallet_sudo::Config for Runtime {
-	type RuntimeEvent = RuntimeEvent;
-	type RuntimeCall = RuntimeCall;
-	type WeightInfo = ();
-}
+/// Executive: handles dispatch to the various modules.
+pub type Executive = executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem>;
 
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
-	pub struct Runtime {
-		System: frame_system = 0,
-		Timestamp: pallet_timestamp = 1,
-		Balances: pallet_balances = 2,
-		Sudo: pallet_sudo = 3,
+	pub struct Runtime
+	where
+		Block = Block,
+		NodeBlock = opaque::Block,
+		UncheckedExtrinsic = UncheckedExtrinsic
+	{
+		System: frame_system,
+		Timestamp: pallet_timestamp,
+		Balances: pallet_balances,
 	}
 );
 
@@ -252,6 +286,49 @@ impl_opaque_keys! {
 	pub struct SessionKeys {}
 }
 
+impl_runtime_apis! {
+	impl sp_api::Core<Block> for Runtime {
+		fn version() -> RuntimeVersion {
+			VERSION
+		}
+
+		fn execute_block(block: Block) {
+			Executive::execute_block(block)
+		}
+
+		fn initialize_block(header: &<Block as BlockT>::Header) -> ExtrinsicInclusionMode {
+			Executive::initialize_block(header)
+		}
+	}
+
+	impl sp_block_builder::BlockBuilder<Block> for Runtime {
+		fn apply_extrinsic(extrinsic: <Block as BlockT>::Extrinsic) -> ApplyExtrinsicResult {
+			Executive::apply_extrinsic(extrinsic)
+		}
+
+		fn finalize_block() -> <Block as BlockT>::Header {
+			Executive::finalize_block()
+		}
+
+		fn inherent_extrinsics(data: InherentData) -> Vec<<Block as BlockT>::Extrinsic> {
+			data.create_extrinsics()
+		}
+
+		fn check_inherents(block: Block, data: InherentData) -> CheckInherentsResult {
+			data.check_extrinsics(&block)
+		}
+	}
+
+	impl runtime_api::TaggedTransactionQueue<Block> for Runtime {
+		fn validate_transaction(
+			source: TransactionSource,
+			tx: <Block as BlockT>::Extrinsic,
+			block_hash: <Block as BlockT>::Hash,
+		) -> TransactionValidity {
+			Executive::validate_transaction(source, tx, block_hash)
+		}
+	}
+}
 
 
 

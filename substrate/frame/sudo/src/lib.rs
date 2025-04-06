@@ -124,10 +124,9 @@
 extern crate alloc;
 
 use alloc::boxed::Box;
-
 use sp_runtime::{traits::StaticLookup, DispatchResult};
-
-use frame_support::{dispatch::GetDispatchInfo, traits::UnfilteredDispatchable};
+use frame_support::{dispatch::GetDispatchInfo, traits::{UnfilteredDispatchable, BuildGenesisConfig}};
+use core::result;
 
 mod extension;
 #[cfg(test)]
@@ -342,6 +341,14 @@ pub mod pallet {
 	}
 
 	#[pallet::genesis_build]
+	#[cfg(feature = "std")]
+	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
+		fn build(&self) {
+			Key::<T>::set(self.key.clone());
+		}
+	}
+
+	#[cfg(not(feature = "std"))]
 	impl<T: Config> BuildGenesisConfig for GenesisConfig<T> {
 		fn build(&self) {
 			Key::<T>::set(self.key.clone());
