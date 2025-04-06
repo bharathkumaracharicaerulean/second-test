@@ -33,7 +33,6 @@ sp-core = { workspace = true, default-features = false }
 sp-std = { workspace = true, default-features = false }
 sp-io = { workspace = true, default-features = false }
 sp-api = { workspace = true, default-features = false }
-sp-block-builder = { workspace = true, default-features = false }
 sp-inherents = { workspace = true, default-features = false }
 sp-version = { workspace = true, default-features = false }
 sp-weights = { workspace = true, default-features = false }
@@ -42,7 +41,6 @@ sp-trie = { workspace = true, default-features = false }
 sp-state-machine = { workspace = true, default-features = false }
 sp-externalities = { workspace = true, default-features = false }
 sp-timestamp = { workspace = true, default-features = false }
-sp-transaction-pool = { workspace = true, default-features = false }
 
 # Pallet dependencies
 pallet-balances = { workspace = true, default-features = false }
@@ -67,7 +65,6 @@ std = [
     "sp-std/std",
     "sp-io/std",
     "sp-api/std",
-    "sp-block-builder/std",
     "sp-inherents/std",
     "sp-version/std",
     "sp-weights/std",
