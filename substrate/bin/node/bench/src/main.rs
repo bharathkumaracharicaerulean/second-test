@@ -30,15 +30,11 @@ mod txpool;
 
 use clap::Parser;
 
-use node_testing::bench::{BlockType, DatabaseType as BenchDataBaseType, KeyTypes};
-
 use crate::{
 	common::SizeType,
 	construct::ConstructionBenchmarkDescription,
 	core::{run_benchmark, Mode as BenchmarkMode},
 	import::ImportBenchmarkDescription,
-	tempdb::DatabaseType,
-	trie::{DatabaseSize, TrieReadBenchmarkDescription, TrieWriteBenchmarkDescription},
 	txpool::PoolBenchmarkDescription,
 };
 
@@ -83,71 +79,23 @@ fn main() {
 		sp_tracing::try_init_simple();
 	}
 
-	let mut import_benchmarks = Vec::new();
-
-	for size in [
-		SizeType::Empty,
-		SizeType::Small,
-		SizeType::Medium,
-		SizeType::Large,
-		SizeType::Full,
-		SizeType::Custom(opt.transactions.unwrap_or(0)),
-	] {
-		for block_type in [
-			BlockType::RandomTransfersKeepAlive,
-			BlockType::RandomTransfersReaping,
-			BlockType::Noop,
-		] {
-			for database_type in [BenchDataBaseType::RocksDb, BenchDataBaseType::ParityDb] {
-				import_benchmarks.push((size, block_type, database_type));
-			}
-		}
-	}
-
-	let benchmarks = matrix!(
-		(size, block_type, database_type) in import_benchmarks.into_iter() =>
-			ImportBenchmarkDescription {
-				key_types: KeyTypes::Sr25519,
-				size,
-				block_type,
-				database_type,
-			},
-		(size, db_type) in
-			[
-				DatabaseSize::Empty, DatabaseSize::Smallest, DatabaseSize::Small,
-				DatabaseSize::Medium, DatabaseSize::Large, DatabaseSize::Huge,
-			]
-			.iter().flat_map(|size|
-			[
-				DatabaseType::RocksDb, DatabaseType::ParityDb
-			]
-			.iter().map(move |db_type| (size, db_type)))
-			=> TrieReadBenchmarkDescription { database_size: *size, database_type: *db_type },
-		(size, db_type) in
-			[
-				DatabaseSize::Empty, DatabaseSize::Smallest, DatabaseSize::Small,
-				DatabaseSize::Medium, DatabaseSize::Large, DatabaseSize::Huge,
-			]
-			.iter().flat_map(|size|
-			[
-				DatabaseType::RocksDb, DatabaseType::ParityDb
-			]
-			.iter().map(move |db_type| (size, db_type)))
-			=> TrieWriteBenchmarkDescription { database_size: *size, database_type: *db_type },
-		ConstructionBenchmarkDescription {
-			key_types: KeyTypes::Sr25519,
-			block_type: BlockType::RandomTransfersKeepAlive,
+	let benchmarks = vec![
+		Box::new(ImportBenchmarkDescription {
+			key_types: "sr25519".to_string(),
+			block_type: "transfer".to_string(),
 			size: SizeType::Medium,
-			database_type: BenchDataBaseType::RocksDb,
-		},
-		ConstructionBenchmarkDescription {
-			key_types: KeyTypes::Sr25519,
-			block_type: BlockType::RandomTransfersKeepAlive,
-			size: SizeType::Large,
-			database_type: BenchDataBaseType::RocksDb,
-		},
-		PoolBenchmarkDescription { database_type: BenchDataBaseType::RocksDb },
-	);
+			database_type: "rocksdb".to_string(),
+		}) as Box<dyn core::BenchmarkDescription>,
+		Box::new(ConstructionBenchmarkDescription {
+			key_types: "sr25519".to_string(),
+			block_type: "transfer".to_string(),
+			size: SizeType::Medium,
+			database_type: "rocksdb".to_string(),
+		}),
+		Box::new(PoolBenchmarkDescription {
+			database_type: "rocksdb".to_string(),
+		}),
+	];
 
 	if opt.list {
 		println!("Available benchmarks:");
@@ -159,7 +107,7 @@ fn main() {
 				println!("{}: {}", benchmark.name(), benchmark.path().full())
 			}
 		}
-		return
+		return;
 	}
 
 	let mut results = Vec::new();

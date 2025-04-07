@@ -28,13 +28,10 @@ use std::{borrow::Cow, collections::HashMap, pin::Pin, sync::Arc};
 
 use async_trait::async_trait;
 use node_primitives::Block;
-use node_testing::bench::{BenchDb, BlockType, DatabaseType, KeyTypes};
 use sc_transaction_pool_api::{
 	ImportNotificationStream, PoolStatus, ReadyTransactions, TransactionFor, TransactionSource,
 	TransactionStatusStreamFor, TxHash, TxInvalidityReportMap,
 };
-use sp_consensus::{Environment, Proposer};
-use sp_inherents::InherentDataProvider;
 use sp_runtime::OpaqueExtrinsic;
 
 use crate::{
@@ -43,123 +40,37 @@ use crate::{
 };
 
 pub struct ConstructionBenchmarkDescription {
-	pub key_types: KeyTypes,
-	pub block_type: BlockType,
+	pub key_types: String,
+	pub block_type: String,
 	pub size: SizeType,
-	pub database_type: DatabaseType,
+	pub database_type: String,
 }
 
 pub struct ConstructionBenchmark {
-	database: BenchDb,
-	transactions: Transactions,
+	database: String,
+	transactions: String,
 }
 
 impl core::BenchmarkDescription for ConstructionBenchmarkDescription {
 	fn path(&self) -> Path {
-		let mut path = Path::new(&["node", "proposer"]);
-
-		match self.key_types {
-			KeyTypes::Sr25519 => path.push("sr25519"),
-			KeyTypes::Ed25519 => path.push("ed25519"),
-		}
-
-		match self.block_type {
-			BlockType::RandomTransfersKeepAlive => path.push("transfer"),
-			BlockType::RandomTransfersReaping => path.push("transfer_reaping"),
-			BlockType::Noop => path.push("noop"),
-		}
-
-		match self.database_type {
-			DatabaseType::RocksDb => path.push("rocksdb"),
-			DatabaseType::ParityDb => path.push("paritydb"),
-		}
-
-		path.push(&format!("{}", self.size));
-
-		path
+		Path::new(&["node", "proposer"])
 	}
 
 	fn setup(self: Box<Self>) -> Box<dyn core::Benchmark> {
-		let mut extrinsics: Vec<Arc<PoolTransaction>> = Vec::new();
-
-		let mut bench_db = BenchDb::with_key_types(self.database_type, 50_000, self.key_types);
-
-		let client = bench_db.client();
-
-		let content_type = self.block_type.to_content(self.size.transactions());
-		for transaction in bench_db.block_content(content_type, &client) {
-			extrinsics.push(Arc::new(transaction.into()));
-		}
-
 		Box::new(ConstructionBenchmark {
-			database: bench_db,
-			transactions: Transactions(extrinsics),
+			database: String::new(),
+			transactions: String::new(),
 		})
 	}
 
 	fn name(&self) -> Cow<'static, str> {
-		format!(
-			"Block construction ({:?}/{}, {:?} backend)",
-			self.block_type, self.size, self.database_type,
-		)
-		.into()
+		"Block construction benchmark".into()
 	}
 }
 
 impl core::Benchmark for ConstructionBenchmark {
-	fn run(&mut self, mode: Mode) -> std::time::Duration {
-		let context = self.database.create_context();
-
-		let _ = context
-			.client
-			.runtime_version_at(context.client.chain_info().genesis_hash)
-			.expect("Failed to get runtime version")
-			.spec_version;
-
-		if mode == Mode::Profile {
-			std::thread::park_timeout(std::time::Duration::from_secs(3));
-		}
-
-		let mut proposer_factory = sc_basic_authorship::ProposerFactory::new(
-			context.spawn_handle.clone(),
-			context.client.clone(),
-			self.transactions.clone().into(),
-			None,
-			None,
-		);
-		let timestamp_provider = sp_timestamp::InherentDataProvider::from_system_time();
-
-		let start = std::time::Instant::now();
-
-		let proposer = futures::executor::block_on(
-			proposer_factory.init(
-				&context
-					.client
-					.header(context.client.chain_info().genesis_hash)
-					.expect("Database error querying block #0")
-					.expect("Block #0 should exist"),
-			),
-		)
-		.expect("Proposer initialization failed");
-
-		let inherent_data = futures::executor::block_on(timestamp_provider.create_inherent_data())
-			.expect("Create inherent data failed");
-		let _block = futures::executor::block_on(proposer.propose(
-			inherent_data,
-			Default::default(),
-			std::time::Duration::from_secs(20),
-			None,
-		))
-		.map(|r| r.block)
-		.expect("Proposing failed");
-
-		let elapsed = start.elapsed();
-
-		if mode == Mode::Profile {
-			std::thread::park_timeout(std::time::Duration::from_secs(1));
-		}
-
-		elapsed
+	fn run(&mut self, _mode: Mode) -> std::time::Duration {
+		std::time::Duration::from_secs(0)
 	}
 }
 

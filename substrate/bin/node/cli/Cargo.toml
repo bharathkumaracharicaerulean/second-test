@@ -68,7 +68,7 @@ substrate-frame-rpc-system = { workspace = true }
 
 # Shared code between the staging node and kitchensink runtime:
 kitchensink-runtime = { path = "../../../runtime", default-features = false }
-node-primitives = { path = "../primitives", default-features = true }
+node-primitives = { path = "../../../primitives", default-features = true }
 node-rpc = { path = "../rpc", default-features = false }
 
 # These testing-only dependencies are not exported by the Polkadot-SDK crate:

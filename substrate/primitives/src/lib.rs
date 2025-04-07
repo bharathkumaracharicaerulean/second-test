@@ -63,4 +63,4 @@ pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 /// Block type.
 pub type Block = generic::Block<Header, OpaqueExtrinsic>;
 /// Block ID.
-pub type BlockId = generic::BlockId<Block>;
+pub type BlockId = generic::BlockId<Block>; 

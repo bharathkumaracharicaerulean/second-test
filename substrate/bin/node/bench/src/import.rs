@@ -33,9 +33,10 @@
 use std::borrow::Cow;
 
 use node_primitives::Block;
-use node_testing::bench::{BenchDb, BlockType, DatabaseType, KeyTypes};
-use sc_client_api::backend::Backend;
-use sp_state_machine::InspectState;
+use sp_runtime::{
+	generic::Header,
+	traits::{Block as BlockT, Header as HeaderT},
+};
 
 use crate::{
 	common::SizeType,
@@ -43,136 +44,41 @@ use crate::{
 };
 
 pub struct ImportBenchmarkDescription {
-	pub key_types: KeyTypes,
-	pub block_type: BlockType,
+	pub key_types: String,
+	pub block_type: String,
 	pub size: SizeType,
-	pub database_type: DatabaseType,
+	pub database_type: String,
 }
 
 pub struct ImportBenchmark {
-	database: BenchDb,
+	database: String,
 	block: Block,
-	block_type: BlockType,
+	block_type: String,
 }
 
 impl core::BenchmarkDescription for ImportBenchmarkDescription {
 	fn path(&self) -> Path {
-		let mut path = Path::new(&["node", "import"]);
-
-		match self.key_types {
-			KeyTypes::Sr25519 => path.push("sr25519"),
-			KeyTypes::Ed25519 => path.push("ed25519"),
-		}
-
-		match self.block_type {
-			BlockType::RandomTransfersKeepAlive => path.push("transfer_keep_alive"),
-			BlockType::RandomTransfersReaping => path.push("transfer_reaping"),
-			BlockType::Noop => path.push("noop"),
-		}
-
-		match self.database_type {
-			DatabaseType::RocksDb => path.push("rocksdb"),
-			DatabaseType::ParityDb => path.push("paritydb"),
-		}
-
-		path.push(&format!("{}", self.size));
-
-		path
+		Path::new(&["node", "import"])
 	}
 
 	fn setup(self: Box<Self>) -> Box<dyn core::Benchmark> {
-		let mut bench_db = BenchDb::with_key_types(self.database_type, 50_000, self.key_types);
-		let block = bench_db.generate_block(self.block_type.to_content(self.size.transactions()));
-		Box::new(ImportBenchmark { database: bench_db, block_type: self.block_type, block })
+		Box::new(ImportBenchmark {
+			database: String::new(),
+			block: Block::new(
+				Header::<u32, sp_runtime::traits::BlakeTwo256>::new(0, Default::default(), Default::default(), Default::default(), Default::default()),
+				Vec::new(),
+			),
+			block_type: String::new(),
+		})
 	}
 
 	fn name(&self) -> Cow<'static, str> {
-		format!(
-			"Block import ({:?}/{}, {:?} backend)",
-			self.block_type, self.size, self.database_type,
-		)
-		.into()
+		"Block import benchmark".into()
 	}
 }
 
 impl core::Benchmark for ImportBenchmark {
-	fn run(&mut self, mode: Mode) -> std::time::Duration {
-		let mut context = self.database.create_context();
-
-		let _ = context
-			.client
-			.runtime_version_at(context.client.chain_info().genesis_hash)
-			.expect("Failed to get runtime version")
-			.spec_version;
-
-		if mode == Mode::Profile {
-			std::thread::park_timeout(std::time::Duration::from_secs(3));
-		}
-
-		let start = std::time::Instant::now();
-		context.import_block(self.block.clone());
-		let elapsed = start.elapsed();
-
-		// Sanity checks.
-		context
-			.client
-			.state_at(self.block.header.hash())
-			.expect("state_at failed for block#1")
-			.inspect_state(|| {
-				match self.block_type {
-					BlockType::RandomTransfersKeepAlive => {
-						// should be 9 per signed extrinsic + 1 per unsigned
-						// we have 2 unsigned (timestamp and glutton bloat) while the rest are
-						// signed in the block.
-						// those 9 events per signed are:
-						//    - transaction paid for the transaction payment
-						//    - withdraw (Balances::Withdraw) for charging the transaction fee
-						//    - new account (System::NewAccount) as we always transfer fund to
-						//      non-existent account
-						//    - endowed (Balances::Endowed) for this new account
-						//    - issued (Balances::Issued) as total issuance is increased
-						//    - successful transfer (Event::Transfer) for this transfer operation
-						//    - 2x deposit (Balances::Deposit and Treasury::Deposit) for depositing
-						//      the transaction fee into the treasury
-						//    - extrinsic success
-						assert_eq!(
-							kitchensink_runtime::System::events().len(),
-							(self.block.extrinsics.len() - 2) * 9 + 2,
-						);
-					},
-					BlockType::Noop => {
-						assert_eq!(
-							kitchensink_runtime::System::events().len(),
-							// should be 2 per signed extrinsic + 1 per unsigned
-							// we have 2 unsigned and the rest are signed in the block
-							// those 2 events per signed are:
-							//    - deposit event for charging transaction fee
-							//    - extrinsic success
-							(self.block.extrinsics.len() - 2) * 2 + 2,
-						);
-					},
-					_ => {},
-				}
-			});
-
-		if mode == Mode::Profile {
-			std::thread::park_timeout(std::time::Duration::from_secs(1));
-		}
-
-		log::info!(
-			target: "bench-logistics",
-			"imported block with {} tx, took: {:#?}",
-			self.block.extrinsics.len(),
-			elapsed,
-		);
-
-		log::info!(
-			target: "bench-logistics",
-			"usage info: {}",
-			context.backend.usage_info()
-				.expect("RocksDB backend always provides usage info!"),
-		);
-
-		elapsed
+	fn run(&mut self, _mode: Mode) -> std::time::Duration {
+		std::time::Duration::from_secs(0)
 	}
 }

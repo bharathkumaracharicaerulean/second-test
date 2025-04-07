@@ -37,6 +37,14 @@ use std::{string::String, vec::Vec};
 #[cfg(not(feature = "std"))]
 use sp_std::vec::Vec;
 
+// Import core types for no_std environment
+#[cfg(not(feature = "std"))]
+use core::{
+	default::Default,
+	option::Option,
+	result::Result,
+};
+
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
@@ -87,9 +95,6 @@ pub type Header = generic::Header<BlockNumber, BlakeTwo256>;
 
 /// The unchecked extrinsic type used by the runtime.
 pub type UncheckedExtrinsic = generic::UncheckedExtrinsic<AccountId, RuntimeCall, Signature, ()>;
-
-/// Import the template pallet.
-
 
 /// The type for looking up accounts. We don't expect more than 4 billion of them, but you
 /// never know...
