@@ -32,10 +32,6 @@ use sp_std::borrow::Cow;
 use sp_version::RuntimeVersion;
 #[cfg(feature = "std")]
 use sp_version::NativeVersion;
-#[cfg(feature = "std")]
-use std::{string::String, vec::Vec};
-#[cfg(not(feature = "std"))]
-use sp_std::vec::Vec;
 
 // Import core types for no_std environment
 #[cfg(not(feature = "std"))]
@@ -43,6 +39,17 @@ use core::{
 	default::Default,
 	option::Option,
 	result::Result,
+	clone::Clone,
+};
+
+// Import std types when in std environment
+#[cfg(feature = "std")]
+use std::{
+	string::String,
+	vec::Vec,
+	cell::RefCell,
+	fmt::Result as FmtResult,
+	mem,
 };
 
 use frame_support::{

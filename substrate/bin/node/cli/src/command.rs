@@ -25,9 +25,46 @@ use crate::{
 };
 use kitchensink_runtime::Block;
 use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
-use sc_service::PartialComponents;
 
-use std::sync::Arc;
+#[derive(Debug, clap::Parser)]
+pub struct Cli {
+	#[command(subcommand)]
+	pub subcommand: Option<Subcommand>,
+
+	#[clap(flatten)]
+	pub run: sc_cli::RunCmd,
+
+	#[clap(flatten)]
+	pub node: sc_cli::NodeKeyParams,
+}
+
+#[derive(Debug, clap::Subcommand)]
+pub enum Subcommand {
+	/// Key management cli utilities
+	#[command(subcommand)]
+	Key(sc_cli::KeySubcommand),
+
+	/// Build a chain specification.
+	BuildSpec(sc_cli::BuildSpecCmd),
+
+	/// Validate blocks.
+	CheckBlock(sc_cli::CheckBlockCmd),
+
+	/// Export blocks.
+	ExportBlocks(sc_cli::ExportBlocksCmd),
+
+	/// Export the state of a given block into a chain spec.
+	ExportState(sc_cli::ExportStateCmd),
+
+	/// Import blocks.
+	ImportBlocks(sc_cli::ImportBlocksCmd),
+
+	/// Remove the whole chain.
+	PurgeChain(sc_cli::PurgeChainCmd),
+
+	/// Revert the chain to a previous state.
+	Revert(sc_cli::RevertCmd),
+}
 
 impl SubstrateCli for Cli {
 	fn impl_name() -> String {
@@ -35,7 +72,7 @@ impl SubstrateCli for Cli {
 	}
 
 	fn impl_version() -> String {
-		env!("CARGO_PKG_VERSION").into()
+		env!("SUBSTRATE_CLI_IMPL_VERSION").into()
 	}
 
 	fn description() -> String {
@@ -47,21 +84,20 @@ impl SubstrateCli for Cli {
 	}
 
 	fn support_url() -> String {
-		"https://github.com/paritytech/substrate/issues/new".into()
+		"support.anonymous.an".into()
 	}
 
 	fn copyright_start_year() -> i32 {
 		2017
 	}
 
-	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_service::ChainSpec>, String> {
-		Ok(match id {
-			"dev" => Box::new(chain_spec::development_config()),
-			"local" => Box::new(chain_spec::local_testnet_config()),
-			path => Box::new(chain_spec::ChainSpec::from_json_file(
-				std::path::PathBuf::from(path),
-			)?),
-		})
+	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
+		let spec = match id {
+			"dev" => chain_spec::development_config()?,
+			"local" => chain_spec::local_testnet_config()?,
+			path => chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?,
+		};
+		Ok(Box::new(spec))
 	}
 
 	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
@@ -79,47 +115,9 @@ pub fn run() -> sc_cli::Result<()> {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
 		}
-		Some(Subcommand::CheckBlock(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, import_queue, .. } =
-					service::new_partial(&config)?;
-				Ok((cmd.run(client, import_queue), task_manager))
-			})
-		}
-		Some(Subcommand::ExportBlocks(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, .. } = service::new_partial(&config)?;
-				Ok((cmd.run(client, config.database), task_manager))
-			})
-		}
-		Some(Subcommand::ExportState(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, .. } = service::new_partial(&config)?;
-				Ok((cmd.run(client, config.chain_spec), task_manager))
-			})
-		}
-		Some(Subcommand::ImportBlocks(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, import_queue, .. } =
-					service::new_partial(&config)?;
-				Ok((cmd.run(client, import_queue), task_manager))
-			})
-		}
 		Some(Subcommand::PurgeChain(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.database))
-		}
-		Some(Subcommand::Revert(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
-			runner.async_run(|config| {
-				let PartialComponents { client, task_manager, backend, .. } =
-					service::new_partial(&config)?;
-				Ok((cmd.run(client, backend, None), task_manager))
-			})
 		}
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
@@ -127,5 +125,6 @@ pub fn run() -> sc_cli::Result<()> {
 				service::new_full(config).map_err(sc_cli::Error::Service)
 			})
 		}
+		_ => Err("Subcommand not supported in minimal runtime.".into()),
 	}
 }

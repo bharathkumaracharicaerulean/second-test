@@ -67,7 +67,7 @@ substrate-build-script-utils = { workspace = true }
 substrate-frame-rpc-system = { workspace = true }
 
 # Shared code between the staging node and kitchensink runtime:
-kitchensink-runtime = { path = "../../../runtime", default-features = false }
+kitchensink-runtime = { path = "../../../runtime", default-features = true }
 node-primitives = { path = "../../../primitives", default-features = true }
 node-rpc = { path = "../rpc", default-features = false }
 
