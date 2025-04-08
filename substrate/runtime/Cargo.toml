@@ -41,6 +41,8 @@ sp-trie = { workspace = true, default-features = false }
 sp-state-machine = { workspace = true, default-features = false }
 sp-externalities = { workspace = true, default-features = false }
 sp-timestamp = { workspace = true, default-features = false }
+sp-transaction-pool = { workspace = true, default-features = false }
+sp-block-builder = { workspace = true, default-features = false }
 
 # Pallet dependencies
 pallet-balances = { workspace = true, default-features = false }
@@ -73,6 +75,8 @@ std = [
     "sp-state-machine/std",
     "sp-externalities/std",
     "sp-timestamp/std",
+    "sp-transaction-pool/std",
+    "sp-block-builder/std",
     "pallet-balances/std",
     "pallet-timestamp/std",
     "node-primitives/std",

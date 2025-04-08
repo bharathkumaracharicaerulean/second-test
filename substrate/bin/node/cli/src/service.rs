@@ -20,19 +20,21 @@
 
 //! Service implementation. Specialized wrapper over substrate service.
 
-use sc_cli::Result;
+use std::result::Result;
 use kitchensink_runtime::{self, opaque::Block, RuntimeApi};
-use sc_client_api::BlockBackend;
 use sc_executor::NativeElseWasmExecutor;
 use sc_service::{error::Error as ServiceError, Configuration, PartialComponents, TFullBackend, TFullClient, TaskManager};
-use sp_consensus::BlockImport;
-use sp_runtime::traits::BlakeTwo256;
+use sc_consensus::import_queue::{ImportQueue, ImportQueueService};
 use std::sync::Arc;
+use sc_transaction_pool::{BasicPool, Options, PoolLimit, FullChainApi};
+use std::time::Duration;
+use sc_network::config::NetworkConfiguration;
+use sp_core::traits::SpawnNamed;
 
 pub struct ExecutorDispatch;
 
 impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
-	type ExtendHostFunctions = frame_benchmarking::benchmarking::HostFunctions;
+	type ExtendHostFunctions = ();
 
 	fn dispatch(method: &str, data: &[u8]) -> Option<Vec<u8>> {
 		kitchensink_runtime::api::dispatch(method, data)
@@ -47,41 +49,53 @@ impl sc_executor::NativeExecutionDispatch for ExecutorDispatch {
 pub type FullClient = TFullClient<Block, RuntimeApi, NativeElseWasmExecutor<ExecutorDispatch>>;
 pub type FullBackend = TFullBackend<Block>;
 pub type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
-pub type FullPool = sc_transaction_pool::FullPool<Block, FullClient>;
+pub type Pool = BasicPool<FullChainApi<FullClient, Block>, Block>;
 
 /// Creates a new partial node.
 pub fn new_partial(
 	config: &Configuration,
-) -> Result<PartialComponents<FullClient, FullBackend, FullSelectChain, sp_consensus::import_queue::BasicQueue<Block, FullBackend>, FullPool>, ServiceError> {
-	let inherent_data_providers = sp_inherents::InherentDataProviders::new();
+) -> Result<PartialComponents<FullClient, FullBackend, FullSelectChain, Box<dyn ImportQueue<Block>>, Pool, ()>, ServiceError> {
+	let executor = NativeElseWasmExecutor::<ExecutorDispatch>::new(
+		config.executor.wasm_method,
+		config.executor.default_heap_pages,
+		config.executor.max_runtime_instances,
+		config.executor.runtime_cache_size,
+	);
 
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
 			config,
-			inherent_data_providers.clone(),
+			Default::default(),
+			executor,
 		)?;
 	let client = Arc::new(client);
 
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
-	let transaction_pool = sc_transaction_pool::BasicPool::new_full(
-		config.transaction_pool.clone(),
+	let import_queue = Box::new(ImportQueueService::new(
+		Box::new(client.clone()),
+		client.clone(),
+		config.prometheus_registry(),
+	));
+
+	let transaction_pool = BasicPool::new_full(
+		Options {
+			ready: PoolLimit {
+				count: 8192,
+				total_bytes: 20 * 1024 * 1024,
+			},
+			future: PoolLimit {
+				count: 8192,
+				total_bytes: 20 * 1024 * 1024,
+			},
+			reject_future_transactions: false,
+			ban_time: Duration::from_secs(60 * 60), // 1 hour
+		},
 		config.role.is_authority().into(),
 		config.prometheus_registry(),
-		task_manager.spawn_handle(),
+		task_manager.spawn_essential_handle(),
 		client.clone(),
 	);
-
-	let import_queue = sc_consensus_babe::import_queue(
-		inherent_data_providers.clone(),
-		&task_manager.spawn_handle(),
-		client.clone(),
-		select_chain.clone(),
-		move |_, _| async move { Ok(()) },
-		&task_manager.spawn_handle(),
-		config.prometheus_registry(),
-		sp_consensus::NeverCanAuthor,
-	)?;
 
 	Ok(PartialComponents {
 		client,
@@ -90,7 +104,7 @@ pub fn new_partial(
 		import_queue,
 		keystore_container,
 		select_chain,
-		transaction_pool,
+		transaction_pool: Arc::new(transaction_pool),
 		other: (),
 	})
 }
@@ -102,52 +116,42 @@ pub fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 		backend,
 		mut task_manager,
 		import_queue,
-		keystore_container,
+		mut keystore_container,
 		select_chain,
 		transaction_pool,
-		..
+		other: (),
 	} = new_partial(&config)?;
 
-	let (network, system_rpc_tx, tx_handler_controller, sync_service) = sc_service::build_network(
-		sc_service::BuildNetworkParams {
+	let net_config = NetworkConfiguration::new();
+	let (network, _, _, network_starter) =
+		sc_service::build_network(sc_service::BuildNetworkParams {
 			config: &config,
 			client: client.clone(),
 			transaction_pool: transaction_pool.clone(),
 			spawn_handle: task_manager.spawn_handle(),
-			import_queue,
+			import_queue: Some(import_queue),
 			block_announce_validator_builder: None,
-			warp_sync: None,
-		},
-	)?;
-
-	let rpc_builder = {
-		let client = client.clone();
-		let transaction_pool = transaction_pool.clone();
-
-		Box::new(move |deny_unsafe, _| {
-			let deps = crate::rpc::FullDeps {
-				client: client.clone(),
-				pool: transaction_pool.clone(),
-				deny_unsafe,
-			};
-
-			crate::rpc::create_full(deps)
-		})
-	};
+			warp_sync_config: None,
+			metrics: Default::default(),
+			net_config,
+			block_relay: Default::default(),
+		})?;
 
 	sc_service::spawn_tasks(sc_service::SpawnTasksParams {
-		config,
-		backend,
-		client,
-		keystore_container,
+		network: network.clone(),
+		client: client.clone(),
+		keystore: keystore_container.keystore(),
 		task_manager: &mut task_manager,
-		transaction_pool,
-		network,
-		rpc_builder,
-		system_rpc_tx,
-		tx_handler_controller,
-		sync_service,
+		transaction_pool: transaction_pool.clone(),
+		rpc_builder: Box::new(|_| Ok(())),
+		sync_service: network.clone(),
+		telemetry: None,
+		backend,
+		config,
+		system_rpc_tx: Default::default(),
 	})?;
+
+	network_starter.start();
 
 	Ok(task_manager)
 }

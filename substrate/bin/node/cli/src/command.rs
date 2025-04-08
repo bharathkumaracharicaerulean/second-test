@@ -16,34 +16,25 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-use sc_cli::*;
-
-use crate::{
-	chain_spec,
-	cli::{Cli, Subcommand},
-	service,
+use sc_cli::{
+	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
+	NetworkParams, Result as CliResult, RuntimeVersion, SharedParams, SubstrateCli,
 };
+use sc_service::{
+	config::{BasePath, PrometheusConfig},
+	ChainSpec as ChainSpecT,
+	PartialComponents,
+	ImportQueue,
+};
+use std::path::PathBuf;
+
+use crate::chain_spec;
+use crate::service;
 use kitchensink_runtime::Block;
-use sc_cli::{ChainSpec, RuntimeVersion, SubstrateCli};
 
-#[derive(Debug, clap::Parser)]
-pub struct Cli {
-	#[command(subcommand)]
-	pub subcommand: Option<Subcommand>,
-
-	#[clap(flatten)]
-	pub run: sc_cli::RunCmd,
-
-	#[clap(flatten)]
-	pub node: sc_cli::NodeKeyParams,
-}
-
+/// Sub-commands supported by the main executor.
 #[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
-	/// Key management cli utilities
-	#[command(subcommand)]
-	Key(sc_cli::KeySubcommand),
-
 	/// Build a chain specification.
 	BuildSpec(sc_cli::BuildSpecCmd),
 
@@ -64,6 +55,32 @@ pub enum Subcommand {
 
 	/// Revert the chain to a previous state.
 	Revert(sc_cli::RevertCmd),
+
+	/// The custom benchmark subcommmand benchmarking runtime pallets.
+	#[clap(name = "benchmark", about = "Benchmark runtime pallets.")]
+	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
+}
+
+#[derive(Debug, clap::Parser)]
+pub struct Cli {
+	#[clap(subcommand)]
+	pub subcommand: Option<Subcommand>,
+
+	#[clap(flatten)]
+	pub run: sc_cli::RunCmd,
+
+	/// Disable automatic hardware benchmarks.
+	///
+	/// By default these benchmarks are automatically ran at startup and measure
+	/// the CPU speed, the memory bandwidth and the disk speed.
+	///
+	/// The results are then printed out in the logs, and also sent as part of
+	/// telemetry, if telemetry is enabled.
+	#[clap(long)]
+	pub no_hardware_benchmarks: bool,
+
+	#[clap(flatten)]
+	pub shared_params: SharedParams,
 }
 
 impl SubstrateCli for Cli {
@@ -84,24 +101,24 @@ impl SubstrateCli for Cli {
 	}
 
 	fn support_url() -> String {
-		"support.anonymous.an".into()
+		"https://github.com/paritytech/substrate/issues/new".into()
 	}
 
 	fn copyright_start_year() -> i32 {
 		2017
 	}
 
-	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
-		let spec = match id {
-			"dev" => chain_spec::development_config()?,
-			"local" => chain_spec::local_testnet_config()?,
-			path => chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?,
-		};
-		Ok(Box::new(spec))
+	fn executable_name() -> String {
+		"substrate".into()
 	}
 
-	fn native_runtime_version(_: &Box<dyn ChainSpec>) -> &'static RuntimeVersion {
-		&kitchensink_runtime::VERSION
+	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
+		let spec = match id {
+			"dev" => chain_spec::development_config(),
+			"" | "local" => chain_spec::local_testnet_config(),
+			path => Ok(chain_spec::ChainSpec::from_json_file(PathBuf::from(path))?),
+		};
+		Ok(Box::new(spec?))
 	}
 }
 
@@ -110,14 +127,55 @@ pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
 
 	match &cli.subcommand {
-		Some(Subcommand::Key(cmd)) => cmd.run(&cli),
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
 		}
+		Some(Subcommand::CheckBlock(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, import_queue, .. } =
+					service::new_partial(&config)?;
+				Ok((cmd.run(client, import_queue), task_manager))
+			})
+		}
+		Some(Subcommand::ExportBlocks(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, .. } = service::new_partial(&config)?;
+				Ok((cmd.run(client, config.database), task_manager))
+			})
+		}
+		Some(Subcommand::ExportState(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, .. } = service::new_partial(&config)?;
+				Ok((cmd.run(client, config.chain_spec), task_manager))
+			})
+		}
+		Some(Subcommand::ImportBlocks(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, import_queue, .. } =
+					service::new_partial(&config)?;
+				Ok((cmd.run(client, import_queue), task_manager))
+			})
+		}
 		Some(Subcommand::PurgeChain(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.sync_run(|config| cmd.run(config.database))
+		}
+		Some(Subcommand::Revert(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.async_run(|config| {
+				let PartialComponents { client, task_manager, backend, .. } =
+					service::new_partial(&config)?;
+				Ok((cmd.run(client, backend, None), task_manager))
+			})
+		}
+		Some(Subcommand::Benchmark(cmd)) => {
+			let runner = cli.create_runner(cmd)?;
+			runner.sync_run(|config| cmd.run::<Block, service::ExecutorDispatch>(config))
 		}
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
@@ -125,6 +183,5 @@ pub fn run() -> sc_cli::Result<()> {
 				service::new_full(config).map_err(sc_cli::Error::Service)
 			})
 		}
-		_ => Err("Subcommand not supported in minimal runtime.".into()),
 	}
 }

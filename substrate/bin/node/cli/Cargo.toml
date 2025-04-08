@@ -25,7 +25,6 @@ targets = ["x86_64-unknown-linux-gnu"]
 [badges]
 maintenance = { status = "actively-developed" }
 
-
 [[bin]]
 name = "substrate-node"
 path = "bin/main.rs"
@@ -46,6 +45,7 @@ log = { workspace = true, default-features = true }
 rand = { workspace = true, default-features = true }
 serde = { features = ["derive"], workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
+hex = "0.4"
 
 # Substrate dependencies
 sc-cli = { workspace = true, default-features = true }
@@ -65,6 +65,9 @@ sp-keyring = { workspace = true }
 sp-runtime = { workspace = true }
 substrate-build-script-utils = { workspace = true }
 substrate-frame-rpc-system = { workspace = true }
+frame-system = { workspace = true }
+pallet-balances = { workspace = true }
+pallet-timestamp = { workspace = true }
 
 # Shared code between the staging node and kitchensink runtime:
 kitchensink-runtime = { path = "../../../runtime", default-features = true }
@@ -74,15 +77,12 @@ node-rpc = { path = "../rpc", default-features = false }
 # These testing-only dependencies are not exported by the Polkadot-SDK crate:
 sc-service-test = { path = "../../../client/service/test", default-features = false }
 
-
 [dev-dependencies]
 assert_cmd = { workspace = true }
-criterion = { features = ["async_tokio"], workspace = true, default-features = true }
 futures = { workspace = true }
 nix = { features = ["signal"], workspace = true }
 pretty_assertions.workspace = true
 regex = { workspace = true }
-scale-info = { features = ["derive", "serde"], workspace = true, default-features = true }
 serde_json = { workspace = true, default-features = true }
 soketto = { workspace = true }
 tempfile = { workspace = true }
@@ -96,21 +96,6 @@ substrate-build-script-utils = { workspace = true }
 [features]
 default = ["cli"]
 cli = ["clap", "clap_complete"]
-runtime-benchmarks = [
-	"kitchensink-runtime/runtime-benchmarks",
-]
 try-runtime = [
-	"kitchensink-runtime/try-runtime",
+    "kitchensink-runtime/try-runtime",
 ]
-
-[[bench]]
-name = "transaction_pool"
-harness = false
-
-[[bench]]
-name = "block_production"
-harness = false
-
-[[bench]]
-name = "executor"
-harness = false
