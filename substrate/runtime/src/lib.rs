@@ -46,16 +46,14 @@ use core::{
 #[cfg(feature = "std")]
 use std::{
 	string::String,
-	vec::Vec,
-	cell::RefCell,
-	fmt::Result as FmtResult,
-	mem,
+	vec::Vec
 };
 
 use frame_support::{
 	construct_runtime, parameter_types,
 	traits::{
 		ConstU128, ConstU32, ConstU64, ConstU16, Everything,
+		 ConstBool,
 	},
 	weights::{
 		constants::WEIGHT_REF_TIME_PER_SECOND, Weight,
@@ -69,6 +67,8 @@ use sp_runtime::{
 	ApplyExtrinsicResult,
 };
 use sp_core::OpaqueMetadata;
+use sp_consensus_aura::sr25519::AuthorityId as AuraId;
+// use sp_consensus_grandpa::AuthorityId as GrandpaId;
 
 pub use frame_support::weights::constants::RocksDbWeight;
 pub use sp_runtime::Permill;
@@ -165,6 +165,7 @@ parameter_types! {
 	pub const MaximumBlockLength: u32 = 5 * 1024 * 1024;
 	pub const Version: RuntimeVersion = VERSION;
 	pub const SS58Prefix: u8 = 42;
+	pub const MaxAuthorities: u32 = 100;
 }
 
 impl frame_system::Config for Runtime {
@@ -230,12 +231,39 @@ impl pallet_timestamp::Config for Runtime {
 /// Executive: handles dispatch to the various modules.
 pub type Executive = executive::Executive<Runtime, Block, frame_system::ChainContext<Runtime>, Runtime, AllPalletsWithSystem>;
 
+impl pallet_aura::Config for Runtime {
+	type AuthorityId = AuraId;
+	type DisabledValidators = ();
+	type MaxAuthorities = MaxAuthorities;
+	type AllowMultipleBlocksPerSlot = ConstBool<false>;
+	type SlotDuration = ConstU64<{ SLOT_DURATION }>;
+}
+
+impl pallet_grandpa::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type WeightInfo = ();
+	type MaxAuthorities = MaxAuthorities;
+	type MaxNominators = ConstU32<100>;
+	type MaxSetIdSessionEntries = ConstU64<0>;
+	type KeyOwnerProof = sp_core::Void;
+	type EquivocationReportSystem = ();
+}
+
+impl pallet_sudo::Config for Runtime {
+	type RuntimeEvent = RuntimeEvent;
+	type RuntimeCall = RuntimeCall;
+	type WeightInfo = ();
+}
+
 // Create the runtime by composing the FRAME pallets that were previously configured.
 construct_runtime!(
 	pub struct Runtime {
 		System: frame_system,
 		Timestamp: pallet_timestamp,
 		Balances: pallet_balances,
+		Aura: pallet_aura,
+		Grandpa: pallet_grandpa,
+		Sudo: pallet_sudo,
 	}
 );
 

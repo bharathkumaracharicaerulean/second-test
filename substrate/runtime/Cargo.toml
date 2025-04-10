@@ -47,6 +47,11 @@ sp-block-builder = { workspace = true, default-features = false }
 # Pallet dependencies
 pallet-balances = { workspace = true, default-features = false }
 pallet-timestamp = { workspace = true, default-features = false }
+pallet-aura = { workspace = true, default-features = false }
+pallet-grandpa = { workspace = true, default-features = false }
+pallet-sudo = { workspace = true, default-features = false }
+sp-consensus-aura = { workspace = true, default-features = false }
+sp-consensus-grandpa = { workspace = true, default-features = false }
 
 # shared code between runtime and node
 node-primitives = { path = "../primitives", default-features = false }
@@ -79,6 +84,11 @@ std = [
     "sp-block-builder/std",
     "pallet-balances/std",
     "pallet-timestamp/std",
+    "pallet-aura/std",
+    "pallet-grandpa/std",
+    "pallet-sudo/std",
+    "sp-consensus-aura/std",
+    "sp-consensus-grandpa/std",
     "node-primitives/std",
     "scale-info/std",
     "sp-debug-derive/std",

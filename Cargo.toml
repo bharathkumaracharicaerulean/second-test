@@ -597,6 +597,8 @@ pallet-babe = { path = "substrate/frame/babe", default-features = false }
 pallet-bags-list = { path = "substrate/frame/bags-list", default-features = false }
 pallet-bags-list-remote-tests = { path = "substrate/frame/bags-list/remote-tests" }
 pallet-balances = { path = "substrate/frame/balances", default-features = false }
+pallet-grandpa = { path = "substrate/frame/grandpa", default-features = false }
+pallet-sudo = { path = "substrate/frame/sudo", default-features = false }
 pallet-beefy = { path = "substrate/frame/beefy", default-features = false }
 pallet-beefy-mmr = { path = "substrate/frame/beefy-mmr", default-features = false }
 pallet-bounties = { path = "substrate/frame/bounties", default-features = false }
@@ -632,7 +634,6 @@ pallet-example-view-functions = { path = "substrate/frame/examples/view-function
 pallet-examples = { path = "substrate/frame/examples" }
 pallet-fast-unstake = { path = "substrate/frame/fast-unstake", default-features = false }
 pallet-glutton = { path = "substrate/frame/glutton", default-features = false }
-pallet-grandpa = { path = "substrate/frame/grandpa", default-features = false }
 pallet-identity = { path = "substrate/frame/identity", default-features = false }
 pallet-im-online = { path = "substrate/frame/im-online", default-features = false }
 pallet-indices = { path = "substrate/frame/indices", default-features = false }
@@ -686,7 +687,6 @@ pallet-staking-reward-fn = { path = "substrate/frame/staking/reward-fn", default
 pallet-staking-runtime-api = { path = "substrate/frame/staking/runtime-api", default-features = false }
 pallet-state-trie-migration = { path = "substrate/frame/state-trie-migration", default-features = false }
 pallet-statement = { default-features = false, path = "substrate/frame/statement" }
-pallet-sudo = { path = "substrate/frame/sudo", default-features = false }
 pallet-timestamp = { path = "substrate/frame/timestamp", default-features = false }
 pallet-tips = { path = "substrate/frame/tips", default-features = false }
 pallet-transaction-payment = { path = "substrate/frame/transaction-payment", default-features = false }
@@ -893,6 +893,8 @@ sp-statement-store = { path = "substrate/primitives/statement-store", default-fe
 sp-std = { path = "substrate/primitives/std", default-features = false }
 sp-storage = { path = "substrate/primitives/storage", default-features = false }
 sp-test-primitives = { path = "substrate/primitives/test-primitives" }
+sp-finality-grandpa = { path = "substrate/primitives/consensus/grandpa", default-features = false }
+
 sp-timestamp = { path = "substrate/primitives/timestamp", default-features = false }
 sp-tracing = { path = "substrate/primitives/tracing", default-features = false }
 sp-transaction-pool = { path = "substrate/primitives/transaction-pool", default-features = false }
@@ -1059,4 +1061,6 @@ wasmi = { opt-level = 3 }
 x25519-dalek = { opt-level = 3 }
 yamux = { opt-level = 3 }
 zeroize = { opt-level = 3 }
+
+
 
