@@ -330,6 +330,43 @@ impl_runtime_apis! {
 			data.check_extrinsics(&block)
 		}
 	}
+
+	impl sp_consensus_aura::AuraApi<Block, AuraId> for Runtime {
+		fn slot_duration() -> sp_consensus_aura::SlotDuration {
+			sp_consensus_aura::SlotDuration::from_millis(SLOT_DURATION)
+		}
+
+		fn authorities() -> Vec<AuraId> {
+			pallet_aura::Authorities::<Runtime>::get().into_inner()
+		}
+	}
+
+	impl sp_consensus_grandpa::GrandpaApi<Block> for Runtime {
+		fn grandpa_authorities() -> sp_consensus_grandpa::AuthorityList {
+			Grandpa::grandpa_authorities()
+		}
+
+		fn current_set_id() -> sp_consensus_grandpa::SetId {
+			Grandpa::current_set_id()
+		}
+
+		fn submit_report_equivocation_unsigned_extrinsic(
+			_equivocation_proof: sp_consensus_grandpa::EquivocationProof<
+				<Block as BlockT>::Hash,
+				sp_runtime::traits::NumberFor<Block>,
+			>,
+			_key_owner_proof: sp_consensus_grandpa::OpaqueKeyOwnershipProof,
+		) -> Option<()> {
+			None
+		}
+
+		fn generate_key_ownership_proof(
+			_set_id: sp_consensus_grandpa::SetId,
+			_authority_id: sp_consensus_grandpa::AuthorityId,
+		) -> Option<sp_consensus_grandpa::OpaqueKeyOwnershipProof> {
+			None
+		}
+	}
 }
 
 

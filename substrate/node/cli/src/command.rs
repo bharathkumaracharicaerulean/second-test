@@ -25,8 +25,19 @@ use sc_service::{
 	ChainSpec as ChainSpecT,
 	PartialComponents,
 	ImportQueue,
+	ChainSpecExtension,
+	Configuration,
+	ChainType,
+	GenericChainSpec,
 };
 use std::path::PathBuf;
+use std::any::{Any, TypeId};
+use serde::{Serialize, Deserialize};
+use kitchensink_runtime::RuntimeGenesisConfig;
+use sc_chain_spec::NoExtension;
+use futures::TryFutureExt;
+use serde_json::Value;
+use sc_telemetry::TelemetryEndpoints;
 
 use crate::chain_spec;
 use crate::service;
@@ -55,10 +66,6 @@ pub enum Subcommand {
 
 	/// Revert the chain to a previous state.
 	Revert(sc_cli::RevertCmd),
-
-	/// The custom benchmark subcommmand benchmarking runtime pallets.
-	#[clap(name = "benchmark", about = "Benchmark runtime pallets.")]
-	Benchmark(frame_benchmarking_cli::BenchmarkCmd),
 }
 
 #[derive(Debug, clap::Parser)]
@@ -68,16 +75,6 @@ pub struct Cli {
 
 	#[clap(flatten)]
 	pub run: sc_cli::RunCmd,
-
-	/// Disable automatic hardware benchmarks.
-	///
-	/// By default these benchmarks are automatically ran at startup and measure
-	/// the CPU speed, the memory bandwidth and the disk speed.
-	///
-	/// The results are then printed out in the logs, and also sent as part of
-	/// telemetry, if telemetry is enabled.
-	#[clap(long)]
-	pub no_hardware_benchmarks: bool,
 
 	#[clap(flatten)]
 	pub shared_params: SharedParams,
@@ -112,13 +109,69 @@ impl SubstrateCli for Cli {
 		"substrate".into()
 	}
 
-	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn ChainSpec>, String> {
+	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_cli::ChainSpec>, String> {
 		let spec = match id {
 			"dev" => chain_spec::development_config(),
 			"" | "local" => chain_spec::local_testnet_config(),
-			path => Ok(chain_spec::ChainSpec::from_json_file(PathBuf::from(path))?),
-		};
-		Ok(Box::new(spec?))
+			path => {
+				let chain_spec = chain_spec::ChainSpec::from_json_file(PathBuf::from(path))?;
+				let genesis = chain_spec.genesis();
+				let wrapped_config = GenesisConfigWrapper(genesis);
+				let chain_spec = GenericChainSpec::builder(
+					&[],
+					NoExtension::default(),
+				)
+				.with_name(chain_spec.name())
+				.with_id(chain_spec.id())
+				.with_chain_type(ChainType::Local)
+				.with_genesis_config(serde_json::to_value(&wrapped_config.0).unwrap_or(Value::Null))
+				.with_boot_nodes(chain_spec.boot_nodes().to_vec())
+				.with_telemetry_endpoints(chain_spec.telemetry_endpoints().clone().unwrap_or_else(|| {
+					let endpoints = Vec::new();
+					TelemetryEndpoints::new(endpoints).expect("Empty endpoints are valid; qed")
+				}))
+				.with_protocol_id(chain_spec.protocol_id().unwrap_or(""))
+				.with_properties(chain_spec.properties().clone())
+				.with_extensions(NoExtension::default())
+				.build()
+				.map_err(|e| format!("Error building chain spec: {}", e).into())?;
+				Ok(Box::new(chain_spec))
+			}
+		}?;
+		Ok(spec)
+	}
+}
+
+static mut EMPTY: () = ();
+
+#[derive(Serialize, Deserialize)]
+struct GenesisConfigWrapper(#[serde(skip)] RuntimeGenesisConfig);
+
+impl std::fmt::Debug for GenesisConfigWrapper {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		write!(f, "GenesisConfigWrapper")
+	}
+}
+
+impl Clone for GenesisConfigWrapper {
+	fn clone(&self) -> Self {
+		unimplemented!("GenesisConfigWrapper is not meant to be cloned")
+	}
+}
+
+impl ChainSpecExtension for GenesisConfigWrapper {
+	type Forks = NoExtension;
+
+	fn get<T: 'static>(&self) -> Option<&T> {
+		None
+	}
+
+	fn get_any(&self, _type_id: TypeId) -> &(dyn Any + 'static) {
+		unsafe { &EMPTY }
+	}
+
+	fn get_any_mut(&mut self, _type_id: TypeId) -> &mut (dyn Any + 'static) {
+		unsafe { &mut EMPTY }
 	}
 }
 
@@ -173,14 +226,10 @@ pub fn run() -> sc_cli::Result<()> {
 				Ok((cmd.run(client, backend, None), task_manager))
 			})
 		}
-		Some(Subcommand::Benchmark(cmd)) => {
-			let runner = cli.create_runner(cmd)?;
-			runner.sync_run(|config| cmd.run::<Block, service::ExecutorDispatch>(config))
-		}
 		None => {
 			let runner = cli.create_runner(&cli.run)?;
 			runner.run_node_until_exit(|config| async move {
-				service::new_full(config).map_err(sc_cli::Error::Service)
+				service::new_full(config).await.map_err(sc_cli::Error::Service)
 			})
 		}
 	}
