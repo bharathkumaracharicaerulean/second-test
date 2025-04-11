@@ -38,22 +38,12 @@ use sc_consensus_grandpa::{
 	SharedVoterState, Config as GrandpaConfig, GrandpaParams, VotingRulesBuilder,
 	GrandpaBlockImport, LinkHalf,
 };
-use sc_network::service::traits::NotificationService;
-use sc_network::NotificationHandle;
+use sc_network::{NetworkService, NotificationService, NetworkStarter};
+use sc_network_sync::SyncingService;
 use std::sync::atomic::{AtomicUsize, AtomicBool};
-use sc_network::SyncingService;
 use sc_service::build_network;
-use prometheus_endpoint::Registry;
-use sc_network::config::NotificationHandshake;
+use sc_network::notifications::NotificationService;
 use sc_network::NetworkStateInfo;
-use sc_network::NetworkPeers;
-use sc_network::NetworkStatusProvider;
-use sc_network::NotificationSender;
-use sc_network::Multiaddr;
-use sc_network::NetworkService as NetworkServiceTrait;
-use sc_utils::mpsc;
-use futures::TryFutureExt;
-use sc_network::service::traits::{NetworkEventStream};
 
 /// The full client type definition.
 pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, WasmExecutor>;
@@ -267,7 +257,7 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 			config: grandpa_config,
 			link: grandpa_link,
 			network: network.clone(),
-			notification_service: Box::new(NotificationService::new(network.clone())),
+			notification_service: Box::new(sc_network::notification::NotificationService::new(network.clone())),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: VotingRulesBuilder::default().build(),
 			prometheus_registry,
@@ -283,8 +273,10 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 		);
 	}
 
-	// Start the network using the network starter from build_network
-	network_starter.start_network();
+	// Start the network
+	if let Some(starter) = network_starter.as_ref() {
+		starter.start_network();
+	}
 
 	Ok(task_manager)
 }

@@ -115,26 +115,25 @@ impl SubstrateCli for Cli {
 			"" | "local" => chain_spec::local_testnet_config(),
 			path => {
 				let chain_spec = chain_spec::ChainSpec::from_json_file(PathBuf::from(path))?;
-				let genesis = chain_spec.genesis();
-				let wrapped_config = GenesisConfigWrapper(genesis);
-				let chain_spec = GenericChainSpec::builder(
-					&[],
-					NoExtension::default(),
-				)
-				.with_name(chain_spec.name())
-				.with_id(chain_spec.id())
-				.with_chain_type(ChainType::Local)
-				.with_genesis_config(serde_json::to_value(&wrapped_config.0).unwrap_or(Value::Null))
-				.with_boot_nodes(chain_spec.boot_nodes().to_vec())
-				.with_telemetry_endpoints(chain_spec.telemetry_endpoints().clone().unwrap_or_else(|| {
-					let endpoints = Vec::new();
-					TelemetryEndpoints::new(endpoints).expect("Empty endpoints are valid; qed")
-				}))
-				.with_protocol_id(chain_spec.protocol_id().unwrap_or(""))
-				.with_properties(chain_spec.properties().clone())
-				.with_extensions(NoExtension::default())
-				.build()
-				.map_err(|e| format!("Error building chain spec: {}", e).into())?;
+				let genesis = chain_spec.as_storage_builder().build_storage().map_err(|e| format!("Error getting genesis: {}", e))?;
+				let wrapped_config = serde_json::to_value(&genesis).map_err(|e| format!("Error converting genesis: {}", e))?;
+
+				let telemetry_endpoints = chain_spec.telemetry_endpoints().clone()
+					.unwrap_or_else(|| sc_telemetry::TelemetryEndpoints::new(vec![]).expect("Failed to create telemetry endpoints"));
+
+				let chain_spec = sc_service::GenericChainSpec::builder(&[], NoExtension::default())
+					.with_name(chain_spec.name())
+					.with_id(chain_spec.id())
+					.with_chain_type(ChainType::Local)
+					.with_genesis_config(wrapped_config)
+					.with_boot_nodes(chain_spec.boot_nodes().to_vec())
+					.with_telemetry_endpoints(telemetry_endpoints)
+					.with_protocol_id(chain_spec.protocol_id().unwrap_or(""))
+					.with_properties(chain_spec.properties().clone())
+					.with_extensions(NoExtension::default())
+					.build()
+					.map_err(|e| format!("Error building chain spec: {}", e))?;
+
 				Ok(Box::new(chain_spec))
 			}
 		}?;
@@ -144,20 +143,8 @@ impl SubstrateCli for Cli {
 
 static mut EMPTY: () = ();
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, Clone)]
 struct GenesisConfigWrapper(#[serde(skip)] RuntimeGenesisConfig);
-
-impl std::fmt::Debug for GenesisConfigWrapper {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		write!(f, "GenesisConfigWrapper")
-	}
-}
-
-impl Clone for GenesisConfigWrapper {
-	fn clone(&self) -> Self {
-		unimplemented!("GenesisConfigWrapper is not meant to be cloned")
-	}
-}
 
 impl ChainSpecExtension for GenesisConfigWrapper {
 	type Forks = NoExtension;
@@ -172,6 +159,12 @@ impl ChainSpecExtension for GenesisConfigWrapper {
 
 	fn get_any_mut(&mut self, _type_id: TypeId) -> &mut (dyn Any + 'static) {
 		unsafe { &mut EMPTY }
+	}
+}
+
+impl Clone for RuntimeGenesisConfig {
+	fn clone(&self) -> Self {
+		Self::default()
 	}
 }
 
