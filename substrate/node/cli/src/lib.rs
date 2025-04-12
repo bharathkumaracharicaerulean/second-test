@@ -59,10 +59,10 @@ pub mod service;
 /// This makes the CLI functionality available to users of this library.
 /// It is only available when the `cli` feature is enabled.
 #[cfg(feature = "cli")]
-pub use cli::{Cli as CliStruct, Subcommand as CliSubcommand};
+pub use cli::{Cli, Subcommand}; // Re-export directly from the cli module
 
 /// Re-export the command module.
 /// This makes the command execution functionality available to users of this library.
 /// It is only available when the `cli` feature is enabled.
 #[cfg(feature = "cli")]
-pub use command::{run, Cli, Subcommand};
+pub use command::run;
