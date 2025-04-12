@@ -16,8 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-#![warn(unused_extern_crates)]
-#![warn(unused_imports)]
 //! Service implementation. Specialized wrapper over substrate service.
 
 use std::result::Result;
@@ -30,18 +28,14 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_consensus_aura::{SlotProportion, StartAuraParams};
 use sc_client_api::BlockBackend;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
-use sp_runtime::traits::Block as BlockT;
 use sc_transaction_pool::FullChainApi;
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging;
 use sc_consensus_grandpa::{
 	SharedVoterState, Config as GrandpaConfig, GrandpaParams, VotingRulesBuilder,
-	GrandpaBlockImport, LinkHalf,
 };
 use sc_network::{
-	NetworkService,
 	config::FullNetworkConfiguration,
-	service::traits::{NotificationService, NetworkService as NetworkServiceTrait},
 };
 use sc_network_sync::SyncingService;
 use std::sync::atomic::{AtomicUsize, AtomicBool};

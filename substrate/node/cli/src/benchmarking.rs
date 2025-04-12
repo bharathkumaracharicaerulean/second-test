@@ -21,9 +21,7 @@
 //! Should only be used for benchmarking as it may break in other contexts.
 
 use crate::service::FullClient;
-use node_primitives::{AccountId, Balance};
 use sc_cli::Result;
-use sp_runtime::OpaqueExtrinsic;
 use std::sync::Arc;
 
 /// Generates extrinsics for the benchmarks.
