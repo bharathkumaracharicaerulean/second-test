@@ -16,9 +16,39 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+use substrate_build_script_utils::{generate_cargo_keys, rerun_if_git_head_changed};
+use std::env;
+
 fn main() {
-	#[cfg(feature = "cli")]
-	cli::main();
+	// Generate the cargo keys for version information
+	generate_cargo_keys();
+
+	// Rerun the build script if the git HEAD changes
+	rerun_if_git_head_changed();
+
+	// Set environment variables for the build
+	println!("cargo:rerun-if-changed=../../runtime/src/lib.rs");
+	println!("cargo:rerun-if-changed=../../runtime/Cargo.toml");
+	
+	// Set the implementation name and version
+	println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_VERSION={}", get_version());
+	println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_NAME=substrate-node");
+}
+
+fn get_version() -> String {
+	let commit_hash = if let Ok(hash) = std::process::Command::new("git")
+		.args(&["rev-parse", "--short", "HEAD"])
+		.output() {
+		if hash.status.success() {
+			String::from_utf8_lossy(&hash.stdout).trim().to_string()
+		} else {
+			"unknown".into()
+		}
+	} else {
+		"unknown".into()
+	};
+
+	format!("{}-{}", env::var("CARGO_PKG_VERSION").unwrap_or_default(), commit_hash)
 }
 
 #[cfg(feature = "cli")]

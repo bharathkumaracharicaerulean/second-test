@@ -17,6 +17,8 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 //! Substrate chain configurations.
+//! This module provides the chain specification implementation for the Substrate node.
+//! It includes predefined configurations for development and local testnet environments.
 
 use std::result::Result;
 use std::borrow::Cow;
@@ -37,50 +39,74 @@ use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sc_executor::sp_wasm_interface::{HostFunctionRegistry, Function as WasmFunction};
 
+/// Empty extensions structure for the chain specification.
+/// This is used when no additional extensions are needed.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub struct Extensions;
 
+impl Default for Extensions {
+	fn default() -> Self {
+		Self
+	}
+}
+
+/// Implementation of ChainSpecExtension for the empty Extensions structure.
+/// This provides type-erased access to the extensions.
 impl ChainSpecExtension for Extensions {
 	type Forks = Option<()>;
 
+	/// Get a value of type T from the extension.
 	fn get<T: 'static>(&self) -> Option<&T> {
 		(self as &dyn Any).downcast_ref()
 	}
 
+	/// Get any value from the extension by type ID.
 	fn get_any(&self, _: TypeId) -> &dyn Any {
 		self as &dyn Any
 	}
 
+	/// Get a mutable reference to any value from the extension by type ID.
 	fn get_any_mut(&mut self, _: TypeId) -> &mut dyn Any {
 		self as &mut dyn Any
 	}
 }
 
+/// Implementation of Group trait for Extensions.
+/// This allows the extensions to be used in a group context.
 impl Group for Extensions {
 	type Fork = Extensions;
 
+	/// Convert the extension to a fork.
 	fn to_fork(self) -> Self::Fork {
 		self
 	}
 }
 
+/// Implementation of Fork trait for Extensions.
+/// This allows the extensions to be used in a fork context.
 impl Fork for Extensions {
 	type Base = Self;
 
-	fn combine_with(&mut self, other: Self) {
+	/// Combine this extension with another.
+	fn combine_with(&mut self, _other: Self) {
 		// No-op, as Extensions is empty
 	}
 
+	/// Convert the extension to its base type.
 	fn to_base(self) -> Option<Self::Base> {
 		Some(self)
 	}
 }
 
+/// Implementation of HostFunctions for Extensions.
+/// This provides WASM host functions for the chain specification.
 impl HostFunctions for Extensions {
+	/// Get the list of host functions.
 	fn host_functions() -> Vec<&'static (dyn WasmFunction + 'static)> {
 		Vec::new()
 	}
 
+	/// Register static host functions.
 	fn register_static<T>(_: &mut T) -> Result<(), <T as HostFunctionRegistry>::Error> 
 	where 
 		T: HostFunctionRegistry 
@@ -92,19 +118,20 @@ impl HostFunctions for Extensions {
 /// Specialized `ChainSpec` for the normal parachain runtime.
 pub type ChainSpec = sc_service::GenericChainSpec<RuntimeGenesisConfig, Extensions>;
 
+/// Type alias for the account public key.
 type AccountPublic = <Signature as Verify>::Signer;
 
-/// The chain specification option. This is expected to come in from the CLI and
-/// is little more than one of a number of alternatives which can easily be converted
-/// from a string (`--chain=...`) into a `ChainSpec`.
+/// The chain specification option.
+/// This enum represents different chain configurations that can be used.
 #[derive(Clone, Debug)]
 pub enum Alternative {
-	/// Whatever the current runtime is, with just Alice as an auth.
+	/// Development configuration with a single validator (Alice).
 	Development,
-	/// Whatever the current runtime is, with simple Alice/Bob auths.
+	/// Local testnet configuration with multiple validators (Alice/Bob).
 	LocalTestnet,
 }
 
+/// Convert a string to an Alternative chain spec.
 impl From<&str> for Alternative {
 	fn from(s: &str) -> Self {
 		match s {
@@ -115,14 +142,16 @@ impl From<&str> for Alternative {
 	}
 }
 
-/// Generate a crypto pair from seed.
+/// Generate a crypto pair from a seed string.
+/// This is used to create consistent keys for testing.
 pub fn get_from_seed<TPublic: Public>(seed: &str) -> <TPublic::Pair as Pair>::Public {
 	TPublic::Pair::from_string(&format!("//{}", seed), None)
 		.expect("static values are valid; qed")
 		.public()
 }
 
-/// Generate an account ID from seed.
+/// Generate an account ID from a seed string.
+/// This is used to create consistent account IDs for testing.
 pub fn get_account_id_from_seed<TPublic: Public>(seed: &str) -> AccountId
 where
 	AccountPublic: From<<TPublic::Pair as Pair>::Public>,
@@ -130,7 +159,8 @@ where
 	AccountPublic::from(get_from_seed::<TPublic>(seed)).into_account()
 }
 
-/// Helper function to generate authority keys
+/// Generate authority keys (Aura and Grandpa) from a seed string.
+/// This is used to create consistent authority keys for testing.
 pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
 	(
 		get_from_seed::<AuraId>(s),
@@ -138,9 +168,10 @@ pub fn authority_keys_from_seed(s: &str) -> (AuraId, GrandpaId) {
 	)
 }
 
-/// Helper function to create a GenesisConfig for testing
+/// Create a genesis configuration for a testnet.
+/// This sets up the initial state of the chain with the given parameters.
 pub fn testnet_genesis(
-	wasm_binary: &[u8],
+	_wasm_binary: &[u8],
 	initial_authorities: Vec<(AuraId, GrandpaId)>,
 	root_key: AccountId,
 	endowed_accounts: Vec<AccountId>,
@@ -167,107 +198,71 @@ pub fn testnet_genesis(
 	}
 }
 
-/// Development config (single validator Alice)
+/// Create a development chain specification.
 pub fn development_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
 
-	let alice = get_account_id_from_seed::<sr25519::Public>("Alice");
-	let alice_authority = authority_keys_from_seed("Alice");
+	let genesis = testnet_genesis(
+		wasm_binary,
+		// Initial authorities
+		vec![authority_keys_from_seed("Alice")],
+		// Root key
+		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		// Endowed accounts
+		vec![
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			get_account_id_from_seed::<sr25519::Public>("Bob"),
+			get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+		],
+		true,
+	);
 
-	let genesis = json!({
-		"name": "Development",
-		"id": "dev",
-		"chainType": "Development",
-		"genesis": {
-			"runtime": {
-				"system": {
-					"code": hex::encode(wasm_binary)
-				},
-				"balances": {
-					"balances": [
-						[alice.to_string(), 1u64 << 60]
-					]
-				},
-				"aura": {
-					"authorities": [alice_authority.0.to_string()]
-				},
-				"grandpa": {
-					"authorities": [[alice_authority.1.to_string(), 1u64]]
-				},
-				"sudo": {
-					"key": alice.to_string()
-				}
-			}
-		},
-		"bootNodes": [],
-		"telemetryEndpoints": null,
-		"protocolId": null,
-		"properties": null,
-		"consensusEngine": null,
-		"codeSubstitutes": {}
-	});
-
-	let json_bytes = serde_json::to_vec(&genesis).map_err(|e| e.to_string())?;
-	ChainSpec::from_json_bytes(Cow::Owned(json_bytes))
+	let json = serde_json::to_string(&genesis)
+		.map_err(|e| format!("Error serializing genesis config: {}", e))?;
+	
+	Ok(ChainSpec::from_json_bytes(json.into_bytes())?)
 }
 
-/// Helper function to create a GenesisConfig for local testnet
+/// Create a local testnet chain specification.
 pub fn local_testnet_config() -> Result<ChainSpec, String> {
 	let wasm_binary = WASM_BINARY.ok_or_else(|| "Development wasm binary not available".to_string())?;
 
-	let alice = get_account_id_from_seed::<sr25519::Public>("Alice");
-	let bob = get_account_id_from_seed::<sr25519::Public>("Bob");
-	let charlie = get_account_id_from_seed::<sr25519::Public>("Charlie");
+	let genesis = testnet_genesis(
+		wasm_binary,
+		// Initial authorities
+		vec![
+			authority_keys_from_seed("Alice"),
+			authority_keys_from_seed("Bob"),
+		],
+		// Root key
+		get_account_id_from_seed::<sr25519::Public>("Alice"),
+		// Endowed accounts
+		vec![
+			get_account_id_from_seed::<sr25519::Public>("Alice"),
+			get_account_id_from_seed::<sr25519::Public>("Bob"),
+			get_account_id_from_seed::<sr25519::Public>("Charlie"),
+			get_account_id_from_seed::<sr25519::Public>("Dave"),
+			get_account_id_from_seed::<sr25519::Public>("Eve"),
+			get_account_id_from_seed::<sr25519::Public>("Ferdie"),
+			get_account_id_from_seed::<sr25519::Public>("Alice//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Bob//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Charlie//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Dave//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Eve//stash"),
+			get_account_id_from_seed::<sr25519::Public>("Ferdie//stash"),
+		],
+		true,
+	);
 
-	let alice_authority = authority_keys_from_seed("Alice");
-	let bob_authority = authority_keys_from_seed("Bob");
-
-	let genesis = json!({
-		"name": "Local Testnet",
-		"id": "local_testnet",
-		"chainType": "Local",
-		"genesis": {
-			"runtime": {
-				"system": {
-					"code": hex::encode(wasm_binary)
-				},
-				"balances": {
-					"balances": [
-						[alice.to_string(), 1u64 << 60],
-						[bob.to_string(), 1u64 << 60],
-						[charlie.to_string(), 1u64 << 60]
-					]
-				},
-				"aura": {
-					"authorities": [
-						alice_authority.0.to_string(),
-						bob_authority.0.to_string()
-					]
-				},
-				"grandpa": {
-					"authorities": [
-						[alice_authority.1.to_string(), 1u64],
-						[bob_authority.1.to_string(), 1u64]
-					]
-				},
-				"sudo": {
-					"key": alice.to_string()
-				}
-			}
-		},
-		"bootNodes": [],
-		"telemetryEndpoints": null,
-		"protocolId": null,
-		"properties": null,
-		"consensusEngine": null,
-		"codeSubstitutes": {}
-	});
-
-	let json_bytes = serde_json::to_vec(&genesis).map_err(|e| e.to_string())?;
-	ChainSpec::from_json_bytes(Cow::Owned(json_bytes))
+	let json = serde_json::to_string(&genesis)
+		.map_err(|e| format!("Error serializing genesis config: {}", e))?;
+	
+	Ok(ChainSpec::from_json_bytes(json.into_bytes())?)
 }
 
-/// Helper function to load chain spec from the environment variable
+/// Load a chain specification from an identifier.
+/// This can be a built-in spec name or a path to a spec file.
 pub fn load_spec(id: &str) -> Result<ChainSpec, String> {
 	match Alternative::from(id) {
 		Alternative::Development => development_config(),
@@ -275,7 +270,8 @@ pub fn load_spec(id: &str) -> Result<ChainSpec, String> {
 	}
 }
 
-/// Get a chain config from a spec setting.
+/// Get a chain specification from an Alternative.
+/// This is a helper function to convert an Alternative to a ChainSpec.
 pub fn get_chain_spec(spec: Alternative) -> Result<ChainSpec, String> {
 	match spec {
 		Alternative::Development => development_config(),

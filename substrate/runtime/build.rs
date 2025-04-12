@@ -18,9 +18,13 @@
 use substrate_wasm_builder::WasmBuilder;
 
 fn main() {
+	// Build the WASM binary
 	WasmBuilder::new()
 		.with_current_project()
 		.export_heap_base()
 		.import_memory()
-		.build()
+		.build();
+	
+	// The WASM_BINARY environment variable is automatically set by the WasmBuilder
+	// No need to manually set it
 }

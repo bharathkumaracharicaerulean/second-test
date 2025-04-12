@@ -30,18 +30,39 @@
 
 #![warn(missing_docs)]
 
-use sc_cli::*;
-
+/// Module for benchmarking functionality.
+/// This module is only available when the `cli` feature is enabled.
 #[cfg(feature = "cli")]
 mod benchmarking;
+
+/// Module for chain specification functionality.
+/// This module provides the chain specification implementation for the Substrate node.
 pub mod chain_spec;
+
+/// Module for CLI functionality.
+/// This module defines the structure of the CLI and its subcommands.
+/// It is only available when the `cli` feature is enabled.
 #[cfg(feature = "cli")]
 mod cli;
+
+/// Module for command execution functionality.
+/// This module handles the execution of CLI commands.
+/// It is only available when the `cli` feature is enabled.
 #[cfg(feature = "cli")]
 mod command;
+
+/// Module for service functionality.
+/// This module provides the service implementation for the Substrate node.
 pub mod service;
 
+/// Re-export the CLI module.
+/// This makes the CLI functionality available to users of this library.
+/// It is only available when the `cli` feature is enabled.
 #[cfg(feature = "cli")]
-pub use cli::*;
+pub use cli::{Cli as CliStruct, Subcommand as CliSubcommand};
+
+/// Re-export the command module.
+/// This makes the command execution functionality available to users of this library.
+/// It is only available when the `cli` feature is enabled.
 #[cfg(feature = "cli")]
-pub use command::*;
+pub use command::{run, Cli, Subcommand};

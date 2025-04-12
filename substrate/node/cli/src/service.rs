@@ -17,7 +17,7 @@
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
 #![warn(unused_extern_crates)]
-
+#![warn(unused_imports)]
 //! Service implementation. Specialized wrapper over substrate service.
 
 use std::result::Result;
@@ -30,7 +30,7 @@ use sc_telemetry::{Telemetry, TelemetryWorker};
 use sc_consensus_aura::{SlotProportion, StartAuraParams};
 use sc_client_api::BlockBackend;
 use sp_consensus_aura::sr25519::AuthorityPair as AuraPair;
-use sp_runtime::traits::{Block as BlockT, Header as HeaderT};
+use sp_runtime::traits::Block as BlockT;
 use sc_transaction_pool::FullChainApi;
 use sc_transaction_pool_api::OffchainTransactionPoolFactory;
 use sc_consensus_slots::BackoffAuthoringOnFinalizedHeadLagging;
@@ -38,12 +38,14 @@ use sc_consensus_grandpa::{
 	SharedVoterState, Config as GrandpaConfig, GrandpaParams, VotingRulesBuilder,
 	GrandpaBlockImport, LinkHalf,
 };
-use sc_network::{NetworkService, NotificationService, NetworkStarter};
+use sc_network::{
+	NetworkService,
+	config::FullNetworkConfiguration,
+	service::traits::{NotificationService, NetworkService as NetworkServiceTrait},
+};
 use sc_network_sync::SyncingService;
 use std::sync::atomic::{AtomicUsize, AtomicBool};
 use sc_service::build_network;
-use sc_network::notifications::NotificationService;
-use sc_network::NetworkStateInfo;
 
 /// The full client type definition.
 pub type FullClient = sc_service::TFullClient<Block, RuntimeApi, WasmExecutor>;
@@ -51,6 +53,8 @@ type FullBackend = sc_service::TFullBackend<Block>;
 type FullSelectChain = sc_consensus::LongestChain<FullBackend, Block>;
 type TransactionPool = sc_transaction_pool::BasicPool<FullChainApi<FullClient, Block>, Block>;
 
+/// Creates a new partial service with all the necessary components.
+/// This includes telemetry, executor, client, backend, and various consensus components.
 pub fn new_partial(
 	config: &Configuration,
 ) -> Result<sc_service::PartialComponents<
@@ -60,11 +64,12 @@ pub fn new_partial(
 	sc_consensus::DefaultImportQueue<Block>,
 	TransactionPool,
 	(
-		GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
-		LinkHalf<Block, FullClient, FullSelectChain>,
+		sc_consensus_grandpa::GrandpaBlockImport<FullBackend, Block, FullClient, FullSelectChain>,
+		sc_consensus_grandpa::LinkHalf<Block, FullClient, FullSelectChain>,
 		Option<Telemetry>,
 	),
 >, ServiceError> {
+	// Initialize telemetry if endpoints are provided
 	let telemetry = config.telemetry_endpoints.clone()
 		.filter(|x| !x.is_empty())
 		.map(|endpoints| -> Result<_, sc_telemetry::Error> {
@@ -74,12 +79,14 @@ pub fn new_partial(
 		})
 		.transpose()?;
 
+	// Configure and build the WASM executor
 	let executor = WasmExecutor::builder()
 		.with_execution_method(config.executor.wasm_method)
 		.with_max_runtime_instances(config.executor.max_runtime_instances)
 		.with_runtime_cache_size(config.executor.runtime_cache_size)
 		.build();
 
+	// Create the core service components
 	let (client, backend, keystore_container, task_manager) =
 		sc_service::new_full_parts::<Block, RuntimeApi, _>(
 			config,
@@ -89,13 +96,16 @@ pub fn new_partial(
 
 	let client = Arc::new(client);
 
+	// Spawn telemetry worker if enabled
 	let telemetry = telemetry.map(|(worker, telemetry)| {
 		task_manager.spawn_handle().spawn("telemetry", None, worker.run());
 		telemetry
 	});
 
+	// Initialize the chain selection mechanism
 	let select_chain = sc_consensus::LongestChain::new(backend.clone());
 
+	// Create the transaction pool
 	let transaction_pool = Arc::new(sc_transaction_pool::BasicPool::new_full(
 		sc_transaction_pool::Options::default(),
 		config.role.is_authority().into(),
@@ -104,6 +114,7 @@ pub fn new_partial(
 		client.clone(),
 	));
 
+	// Set up Grandpa consensus components
 	let (grandpa_block_import, grandpa_link) = sc_consensus_grandpa::block_import(
 		client.clone(),
 		0u32,
@@ -112,8 +123,10 @@ pub fn new_partial(
 		telemetry.as_ref().map(|x| x.handle()),
 	)?;
 
+	// Get the slot duration for Aura consensus
 	let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
+	// Create the import queue for Aura consensus
 	let import_queue = sc_consensus_aura::import_queue::<AuraPair, _, _, _, _, _>(
 		sc_consensus_aura::ImportQueueParams {
 			block_import: grandpa_block_import.clone(),
@@ -135,6 +148,7 @@ pub fn new_partial(
 		},
 	)?;
 
+	// Return all the partial components
 	Ok(sc_service::PartialComponents {
 		client,
 		backend,
@@ -147,6 +161,8 @@ pub fn new_partial(
 	})
 }
 
+/// Creates a new full service with all components initialized and running.
+/// This includes network, consensus, and various other services.
 pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError> {
 	let sc_service::PartialComponents {
 		client,
@@ -159,8 +175,10 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 		other: (block_import, grandpa_link, mut telemetry),
 	} = new_partial(&config)?;
 
-	let mut net_config = sc_network::config::FullNetworkConfiguration::new(&config.network, config.prometheus_registry().cloned());
+	// Configure the network
+	let mut net_config = FullNetworkConfiguration::new(&config.network, config.prometheus_registry().cloned());
 
+	// Build the network service
 	let (network, system_rpc_tx, tx_handler_controller, network_starter) = build_network(sc_service::BuildNetworkParams {
 		config: &config,
 		client: client.clone(),
@@ -174,6 +192,7 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 		net_config,
 	})?;
 
+	// Create the sync service
 	let sync_service = {
 		let (tx, rx) = sc_utils::mpsc::tracing_unbounded("sync-service", 100_000);
 		let counter = Arc::new(AtomicUsize::new(0));
@@ -186,6 +205,7 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 		Arc::new(sync)
 	};
 
+	// Extract configuration parameters
 	let role = config.role.clone();
 	let force_authoring = config.force_authoring;
 	let backoff_authoring_blocks = Some(BackoffAuthoringOnFinalizedHeadLagging::default());
@@ -193,7 +213,9 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 	let enable_grandpa = !config.disable_grandpa;
 	let prometheus_registry = config.prometheus_registry().cloned();
 
+	// Initialize block authoring if this node is an authority
 	if role.is_authority() {
+		// Create the block proposer
 		let proposer = sc_basic_authorship::ProposerFactory::new(
 			task_manager.spawn_handle(),
 			client.clone(),
@@ -202,8 +224,10 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 			telemetry.as_ref().map(|x| x.handle()),
 		);
 
+		// Get the slot duration for Aura
 		let slot_duration = sc_consensus_aura::slot_duration(&*client)?;
 
+		// Start the Aura consensus mechanism
 		let aura = sc_consensus_aura::start_aura::<AuraPair, _, _, _, _, _, _, _, _, _, _>(
 			StartAuraParams {
 				slot_duration,
@@ -231,6 +255,7 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 			},
 		)?;
 
+		// Spawn the Aura service
 		task_manager.spawn_essential_handle().spawn_blocking(
 			"aura",
 			Some("block-authoring"),
@@ -238,7 +263,9 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 		);
 	}
 
+	// Initialize Grandpa consensus if enabled
 	if enable_grandpa {
+		// Configure Grandpa
 		let grandpa_config = GrandpaConfig {
 			gossip_duration: Duration::from_millis(1000),
 			justification_generation_period: 512,
@@ -253,11 +280,12 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 			),
 		};
 
+		// Set up Grandpa parameters
 		let grandpa_params = GrandpaParams {
 			config: grandpa_config,
 			link: grandpa_link,
 			network: network.clone(),
-			notification_service: Box::new(sc_network::notification::NotificationService::new(network.clone())),
+			notification_service: Box::new(sync_service.clone()),
 			telemetry: telemetry.as_ref().map(|x| x.handle()),
 			voting_rule: VotingRulesBuilder::default().build(),
 			prometheus_registry,
@@ -266,6 +294,7 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 			sync: sync_service.clone(),
 		};
 
+		// Spawn the Grandpa voter service
 		task_manager.spawn_essential_handle().spawn_blocking(
 			"grandpa-voter",
 			None,
@@ -274,9 +303,8 @@ pub async fn new_full(config: Configuration) -> Result<TaskManager, ServiceError
 	}
 
 	// Start the network
-	if let Some(starter) = network_starter.as_ref() {
-		starter.start_network();
-	}
+	network_starter.start();
 
+	// Return the task manager
 	Ok(task_manager)
 }

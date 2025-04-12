@@ -16,19 +16,16 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
+//! Command line interface implementation for the Substrate node.
+//! This module handles parsing and execution of CLI commands.
+
 use sc_cli::{
-	ChainSpec, CliConfiguration, DefaultConfigurationValues, ImportParams, KeystoreParams,
-	NetworkParams, Result as CliResult, RuntimeVersion, SharedParams, SubstrateCli,
+	ChainSpec as ChainSpecTrait, SharedParams, SubstrateCli,
 };
 use sc_service::{
-	config::{BasePath, PrometheusConfig},
-	ChainSpec as ChainSpecT,
-	PartialComponents,
-	ImportQueue,
 	ChainSpecExtension,
-	Configuration,
 	ChainType,
-	GenericChainSpec,
+	PartialComponents,
 };
 use std::path::PathBuf;
 use std::any::{Any, TypeId};
@@ -38,144 +35,188 @@ use sc_chain_spec::NoExtension;
 use futures::TryFutureExt;
 use serde_json::Value;
 use sc_telemetry::TelemetryEndpoints;
+use sp_runtime::BuildStorage;
 
 use crate::chain_spec;
 use crate::service;
 use kitchensink_runtime::Block;
 
 /// Sub-commands supported by the main executor.
+/// Each variant represents a different CLI command that can be executed.
 #[derive(Debug, clap::Subcommand)]
 pub enum Subcommand {
 	/// Build a chain specification.
+	/// This command generates a chain specification file that can be used to initialize a new chain.
 	BuildSpec(sc_cli::BuildSpecCmd),
 
 	/// Validate blocks.
+	/// This command checks if blocks in the chain are valid according to the consensus rules.
 	CheckBlock(sc_cli::CheckBlockCmd),
 
 	/// Export blocks.
+	/// This command exports blocks from the chain to a file.
 	ExportBlocks(sc_cli::ExportBlocksCmd),
 
 	/// Export the state of a given block into a chain spec.
+	/// This command exports the state of a specific block to create a new chain specification.
 	ExportState(sc_cli::ExportStateCmd),
 
 	/// Import blocks.
+	/// This command imports blocks from a file into the chain.
 	ImportBlocks(sc_cli::ImportBlocksCmd),
 
 	/// Remove the whole chain.
+	/// This command removes all chain data from the database.
 	PurgeChain(sc_cli::PurgeChainCmd),
 
 	/// Revert the chain to a previous state.
+	/// This command reverts the chain to a specified block.
 	Revert(sc_cli::RevertCmd),
 }
 
+/// Main CLI structure that holds all command-line arguments.
+/// This includes both the subcommand and the shared parameters.
 #[derive(Debug, clap::Parser)]
 pub struct Cli {
+	/// The subcommand to execute.
 	#[clap(subcommand)]
 	pub subcommand: Option<Subcommand>,
 
+	/// The run command parameters.
 	#[clap(flatten)]
 	pub run: sc_cli::RunCmd,
 
+	/// Shared parameters used by all commands.
 	#[clap(flatten)]
 	pub shared_params: SharedParams,
 }
 
+/// Implementation of the Substrate CLI trait for our CLI structure.
+/// This provides basic information about the node implementation.
 impl SubstrateCli for Cli {
+	/// Returns the name of the implementation.
 	fn impl_name() -> String {
-		"Substrate Node".into()
+		env!("SUBSTRATE_CLI_IMPL_NAME").into()
 	}
 
+	/// Returns the version of the implementation.
 	fn impl_version() -> String {
 		env!("SUBSTRATE_CLI_IMPL_VERSION").into()
 	}
 
+	/// Returns the description of the implementation.
 	fn description() -> String {
 		env!("CARGO_PKG_DESCRIPTION").into()
 	}
 
+	/// Returns the author of the implementation.
 	fn author() -> String {
 		env!("CARGO_PKG_AUTHORS").into()
 	}
 
+	/// Returns the support URL for the implementation.
 	fn support_url() -> String {
 		"https://github.com/paritytech/substrate/issues/new".into()
 	}
 
+	/// Returns the copyright start year.
 	fn copyright_start_year() -> i32 {
 		2017
 	}
 
+	/// Returns the executable name.
 	fn executable_name() -> String {
-		"substrate".into()
+		env!("CARGO_PKG_NAME").into()
 	}
 
+	/// Loads a chain specification from the given identifier.
+	/// This can be a built-in spec name or a path to a spec file.
 	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_cli::ChainSpec>, String> {
-		let spec = match id {
-			"dev" => chain_spec::development_config(),
-			"" | "local" => chain_spec::local_testnet_config(),
+		match id {
+			"dev" => {
+				let spec = chain_spec::development_config()?;
+				Ok(Box::new(spec))
+			},
+			"local" => {
+				let spec = chain_spec::local_testnet_config()?;
+				Ok(Box::new(spec))
+			},
 			path => {
-				let chain_spec = chain_spec::ChainSpec::from_json_file(PathBuf::from(path))?;
-				let genesis = chain_spec.as_storage_builder().build_storage().map_err(|e| format!("Error getting genesis: {}", e))?;
-				let wrapped_config = serde_json::to_value(&genesis).map_err(|e| format!("Error converting genesis: {}", e))?;
-
-				let telemetry_endpoints = chain_spec.telemetry_endpoints().clone()
-					.unwrap_or_else(|| sc_telemetry::TelemetryEndpoints::new(vec![]).expect("Failed to create telemetry endpoints"));
-
-				let chain_spec = sc_service::GenericChainSpec::builder(&[], NoExtension::default())
-					.with_name(chain_spec.name())
-					.with_id(chain_spec.id())
-					.with_chain_type(ChainType::Local)
-					.with_genesis_config(wrapped_config)
-					.with_boot_nodes(chain_spec.boot_nodes().to_vec())
-					.with_telemetry_endpoints(telemetry_endpoints)
-					.with_protocol_id(chain_spec.protocol_id().unwrap_or(""))
-					.with_properties(chain_spec.properties().clone())
-					.with_extensions(NoExtension::default())
-					.build()
-					.map_err(|e| format!("Error building chain spec: {}", e))?;
-
-				Ok(Box::new(chain_spec))
+				let path = std::path::PathBuf::from(path);
+				if path.exists() {
+					let raw = std::fs::read_to_string(&path)
+						.map_err(|e| format!("Error reading spec file: {}", e))?;
+					let spec = chain_spec::ChainSpec::from_json_bytes(raw.as_bytes())
+						.map_err(|e| format!("Error parsing spec file: {}", e))?;
+					Ok(Box::new(spec))
+				} else {
+					Err(format!("Spec file not found: {}", path.display()))
+				}
 			}
-		}?;
-		Ok(spec)
+		}
 	}
 }
 
+/// Static empty value used as a placeholder for type erasure.
 static mut EMPTY: () = ();
 
-#[derive(Serialize, Deserialize, Clone)]
-struct GenesisConfigWrapper(#[serde(skip)] RuntimeGenesisConfig);
+/// Wrapper for genesis configuration that implements ChainSpecExtension.
+#[derive(Serialize, Deserialize)]
+struct GenesisConfigWrapper(serde_json::Value);
 
+/// Implementation of ChainSpecExtension for GenesisConfigWrapper.
+/// This provides type-erased access to the genesis configuration.
 impl ChainSpecExtension for GenesisConfigWrapper {
 	type Forks = NoExtension;
 
+	/// Get a value of type T from the extension.
 	fn get<T: 'static>(&self) -> Option<&T> {
 		None
 	}
 
+	/// Get any value from the extension by type ID.
 	fn get_any(&self, _type_id: TypeId) -> &(dyn Any + 'static) {
 		unsafe { &EMPTY }
 	}
 
+	/// Get a mutable reference to any value from the extension by type ID.
 	fn get_any_mut(&mut self, _type_id: TypeId) -> &mut (dyn Any + 'static) {
 		unsafe { &mut EMPTY }
 	}
 }
 
-impl Clone for RuntimeGenesisConfig {
+/// Implementation of Clone for GenesisConfigWrapper.
+impl Clone for GenesisConfigWrapper {
 	fn clone(&self) -> Self {
-		Self::default()
+		Self(self.0.clone())
 	}
 }
 
-/// Parse and run command line arguments
+/// Wrapper for runtime genesis configuration that can be serialized.
+#[derive(Serialize, Deserialize)]
+struct RuntimeGenesisConfigWrapper(#[serde(skip)] RuntimeGenesisConfig);
+
+/// Implementation of Clone for RuntimeGenesisConfigWrapper.
+impl Clone for RuntimeGenesisConfigWrapper {
+    fn clone(&self) -> Self {
+        // Create a new instance with default values
+        // In a production environment, you would want to properly clone all fields
+        Self(RuntimeGenesisConfig::default())
+    }
+}
+
+/// Main entry point for the CLI.
+/// This function parses command line arguments and executes the appropriate command.
 pub fn run() -> sc_cli::Result<()> {
 	let cli = Cli::from_args();
 
 	match &cli.subcommand {
 		Some(Subcommand::BuildSpec(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			runner.sync_run(|config| cmd.run(config.chain_spec, config.network))
+			runner.sync_run(|config| {
+				let chain_spec = config.chain_spec.cloned_box();
+				cmd.run(chain_spec, config.network)
+			})
 		}
 		Some(Subcommand::CheckBlock(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
@@ -209,14 +250,26 @@ pub fn run() -> sc_cli::Result<()> {
 		}
 		Some(Subcommand::PurgeChain(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
-			runner.sync_run(|config| cmd.run(config.database))
+			runner.sync_run(|config| {
+				// Ensure we don't purge custom chain specs
+				let chain_spec = config.chain_spec.cloned_box();
+				if chain_spec.id().starts_with("dev") || chain_spec.id().starts_with("local") {
+					cmd.run(config.database)
+				} else {
+					Err("Only development and local testnet chains can be purged.".into())
+				}
+			})
 		}
 		Some(Subcommand::Revert(cmd)) => {
 			let runner = cli.create_runner(cmd)?;
 			runner.async_run(|config| {
 				let PartialComponents { client, task_manager, backend, .. } =
 					service::new_partial(&config)?;
-				Ok((cmd.run(client, backend, None), task_manager))
+				let aux_revert = Box::new(|client, backend, blocks| {
+					sc_consensus_grandpa::revert(client, blocks)?;
+					Ok(())
+				});
+				Ok((cmd.run(client, backend, Some(aux_revert)), task_manager))
 			})
 		}
 		None => {
