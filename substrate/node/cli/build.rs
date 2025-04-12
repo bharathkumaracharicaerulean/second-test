@@ -51,12 +51,13 @@ fn get_version() -> String {
 	format!("{}-{}", env::var("CARGO_PKG_VERSION").unwrap_or_default(), commit_hash)
 }
 
-#[cfg(feature = "cli")]
-mod cli {
-	use substrate_build_script_utils::{generate_cargo_keys, rerun_if_git_head_changed};
-
-	pub fn main() {
-		generate_cargo_keys();
-		rerun_if_git_head_changed();
-	}
-}
+// Remove the unused cli module
+// #[cfg(feature = "cli")]
+// mod cli {
+// 	use substrate_build_script_utils::{generate_cargo_keys, rerun_if_git_head_changed};
+// 
+// 	pub fn main() {
+// 		generate_cargo_keys();
+// 		rerun_if_git_head_changed();
+// 	}
+// }

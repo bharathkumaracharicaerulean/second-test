@@ -126,7 +126,6 @@ extern crate alloc;
 use alloc::boxed::Box;
 use sp_runtime::{traits::StaticLookup, DispatchResult};
 use frame_support::{dispatch::GetDispatchInfo, traits::{UnfilteredDispatchable, BuildGenesisConfig}};
-use core::result;
 
 mod extension;
 #[cfg(test)]

@@ -21,8 +21,9 @@
 //! It includes predefined configurations for development and local testnet environments.
 
 use std::result::Result;
-use std::borrow::Cow;
-use sc_service::{ChainType, ChainSpecExtension};
+use sc_service::{
+	ChainSpecExtension,
+};
 use sc_chain_spec::{Group, Fork};
 use sc_executor::HostFunctions;
 use serde::{Serialize, Deserialize};
@@ -33,8 +34,6 @@ use kitchensink_runtime::{
 	SudoConfig, SystemConfig, WASM_BINARY, Signature,
 };
 use std::any::{Any, TypeId};
-use serde_json::json;
-use hex;
 use sp_consensus_aura::sr25519::AuthorityId as AuraId;
 use sp_consensus_grandpa::AuthorityId as GrandpaId;
 use sc_executor::sp_wasm_interface::{HostFunctionRegistry, Function as WasmFunction};
@@ -221,7 +220,8 @@ pub fn development_config() -> Result<ChainSpec, String> {
 	let json = serde_json::to_string(&genesis)
 		.map_err(|e| format!("Error serializing genesis config: {}", e))?;
 	
-	Ok(ChainSpec::from_json_bytes(json.into_bytes())?)
+	let chain_spec = ChainSpec::from_json_bytes(json.into_bytes())?;
+	Ok(chain_spec)
 }
 
 /// Create a local testnet chain specification.
@@ -258,7 +258,8 @@ pub fn local_testnet_config() -> Result<ChainSpec, String> {
 	let json = serde_json::to_string(&genesis)
 		.map_err(|e| format!("Error serializing genesis config: {}", e))?;
 	
-	Ok(ChainSpec::from_json_bytes(json.into_bytes())?)
+	let chain_spec = ChainSpec::from_json_bytes(json.into_bytes())?;
+	Ok(chain_spec)
 }
 
 /// Load a chain specification from an identifier.

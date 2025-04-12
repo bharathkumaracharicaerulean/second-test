@@ -24,22 +24,16 @@ use sc_cli::{
 };
 use sc_service::{
 	ChainSpecExtension,
-	ChainType,
 	PartialComponents,
 };
-use std::path::PathBuf;
 use std::any::{Any, TypeId};
 use serde::{Serialize, Deserialize};
 use kitchensink_runtime::RuntimeGenesisConfig;
 use sc_chain_spec::NoExtension;
-use futures::TryFutureExt;
-use serde_json::Value;
-use sc_telemetry::TelemetryEndpoints;
-use sp_runtime::BuildStorage;
+use sc_cli::RunCmd;
 
 use crate::chain_spec;
 use crate::service;
-use kitchensink_runtime::Block;
 
 /// Sub-commands supported by the main executor.
 /// Each variant represents a different CLI command that can be executed.
@@ -84,7 +78,7 @@ pub struct Cli {
 
 	/// The run command parameters.
 	#[clap(flatten)]
-	pub run: sc_cli::RunCmd,
+	pub run: RunCmd,
 
 	/// Shared parameters used by all commands.
 	#[clap(flatten)]
@@ -96,17 +90,17 @@ pub struct Cli {
 impl SubstrateCli for Cli {
 	/// Returns the name of the implementation.
 	fn impl_name() -> String {
-		env!("SUBSTRATE_CLI_IMPL_NAME").into()
+		"Substrate Node".into()
 	}
 
 	/// Returns the version of the implementation.
 	fn impl_version() -> String {
-		env!("SUBSTRATE_CLI_IMPL_VERSION").into()
+		env!("CARGO_PKG_VERSION").into()
 	}
 
 	/// Returns the description of the implementation.
 	fn description() -> String {
-		env!("CARGO_PKG_DESCRIPTION").into()
+		"Substrate Node Implementation".into()
 	}
 
 	/// Returns the author of the implementation.
@@ -131,29 +125,22 @@ impl SubstrateCli for Cli {
 
 	/// Loads a chain specification from the given identifier.
 	/// This can be a built-in spec name or a path to a spec file.
-	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_cli::ChainSpec>, String> {
-		match id {
-			"dev" => {
-				let spec = chain_spec::development_config()?;
-				Ok(Box::new(spec))
-			},
-			"local" => {
-				let spec = chain_spec::local_testnet_config()?;
-				Ok(Box::new(spec))
-			},
+	fn load_spec(&self, id: &str) -> Result<Box<dyn sc_cli::ChainSpec>, String> {
+		let spec = match id {
+			"dev" => chain_spec::development_config()?,
+			"local_testnet" => chain_spec::local_testnet_config()?,
 			path => {
 				let path = std::path::PathBuf::from(path);
 				if path.exists() {
-					let raw = std::fs::read_to_string(&path)
-						.map_err(|e| format!("Error reading spec file: {}", e))?;
-					let spec = chain_spec::ChainSpec::from_json_bytes(raw.as_bytes())
-						.map_err(|e| format!("Error parsing spec file: {}", e))?;
-					Ok(Box::new(spec))
+					chain_spec::ChainSpec::from_json_file(path)?
 				} else {
-					Err(format!("Spec file not found: {}", path.display()))
+					return Err(format!("Spec file not found: {}", path.display()));
 				}
-			}
-		}
+			},
+		};
+		
+		// Use the spec directly without trying to wrap it
+		Ok(Box::new(spec))
 	}
 }
 
@@ -265,7 +252,7 @@ pub fn run() -> sc_cli::Result<()> {
 			runner.async_run(|config| {
 				let PartialComponents { client, task_manager, backend, .. } =
 					service::new_partial(&config)?;
-				let aux_revert = Box::new(|client, backend, blocks| {
+				let aux_revert = Box::new(|client, _backend, blocks| {
 					sc_consensus_grandpa::revert(client, blocks)?;
 					Ok(())
 				});
