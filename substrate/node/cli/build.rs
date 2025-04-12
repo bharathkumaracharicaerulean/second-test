@@ -19,22 +19,21 @@
 use substrate_build_script_utils::{generate_cargo_keys, rerun_if_git_head_changed};
 use std::env;
 
-// Remove unused main function
-// pub fn main() {
-//     // Generate the cargo keys for version information
-//     generate_cargo_keys();
-//
-//     // Rerun the build script if the git HEAD changes
-//     rerun_if_git_head_changed();
-//
-//     // Set environment variables for the build
-//     println!("cargo:rerun-if-changed=../../runtime/src/lib.rs");
-//     println!("cargo:rerun-if-changed=../../runtime/Cargo.toml");
-//     
-//     // Set the implementation name and version
-//     println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_VERSION={}", get_version());
-//     println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_NAME=substrate-node");
-// }
+fn main() {
+	// Generate the cargo keys for version information
+	generate_cargo_keys();
+
+	// Rerun the build script if the git HEAD changes
+	rerun_if_git_head_changed();
+
+	// Set environment variables for the build
+	println!("cargo:rerun-if-changed=../../runtime/src/lib.rs");
+	println!("cargo:rerun-if-changed=../../runtime/Cargo.toml");
+	
+	// Set the implementation name and version
+	println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_VERSION={}", get_version());
+	println!("cargo:rustc-env=SUBSTRATE_CLI_IMPL_NAME=substrate-node");
+}
 
 fn get_version() -> String {
 	let commit_hash = if let Ok(hash) = std::process::Command::new("git")
