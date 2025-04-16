@@ -1,6 +1,6 @@
-// This file is part of Substrate.
+// This file is part of CBC-Chain.
 
-// Copyright (C) Parity Technologies (UK) Ltd.
+// Copyright (C) Caerulean Bytechains Private Limited Technologies (UK) Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -16,9 +16,6 @@
 // You should have received a copy of the GNU General Public License
 // along with this program. If not, see <https://www.gnu.org/licenses/>.
 
-//! Substrate chain configurations.
-//! This module provides the chain specification implementation for the Substrate node.
-//! It includes predefined configurations for development and local testnet environments.
 
 use std::result::Result;
 use sc_service::{

@@ -1,6 +1,6 @@
-// This file is part of Substrate.
+// This file is part of CBC-Chain.
 
-// Copyright (C) Parity Technologies (UK) Ltd.
+// Copyright (C) Caerulean Bytechains Private Limited Technologies (UK) Ltd.
 // SPDX-License-Identifier: GPL-3.0-or-later WITH Classpath-exception-2.0
 
 // This program is free software: you can redistribute it and/or modify
@@ -59,10 +59,10 @@ pub mod service;
 /// This makes the CLI functionality available to users of this library.
 /// It is only available when the `cli` feature is enabled.
 #[cfg(feature = "cli")]
-pub use cli::{Cli, Subcommand}; // Re-export directly from the cli module
+pub use cli::*; // Re-export directly from the cli module
 
 /// Re-export the command module.
 /// This makes the command execution functionality available to users of this library.
 /// It is only available when the `cli` feature is enabled.
 #[cfg(feature = "cli")]
-pub use command::run;
+pub use command::*;
