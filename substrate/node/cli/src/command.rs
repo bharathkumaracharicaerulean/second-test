@@ -41,6 +41,50 @@ static mut EMPTY: () = ();
 #[derive(Serialize, Deserialize, Clone)]
 struct GenesisConfigWrapper(serde_json::Value);
 
+impl SubstrateCli for Cli {
+	fn impl_name() -> String {
+		"Substrate Node".into()
+	}
+
+	fn impl_version() -> String {
+		env!("SUBSTRATE_CLI_IMPL_VERSION").into()
+	}
+
+	fn description() -> String {
+		env!("CARGO_PKG_DESCRIPTION").into()
+	}
+
+	fn author() -> String {
+		env!("CARGO_PKG_AUTHORS").into()
+	}
+
+	fn support_url() -> String {
+		"https://github.com/paritytech/polkadot-sdk/issues/new".into()
+	}
+
+	fn copyright_start_year() -> i32 {
+		2017
+	}
+
+	fn load_spec(&self, id: &str) -> std::result::Result<Box<dyn sc_service::ChainSpec>, String> {
+		let spec = match id {
+			"" =>
+				return Err(
+					"Please specify which chain you want to run, e.g. --dev or --chain=local"
+						.into(),
+				),
+			"dev" => Box::new(chain_spec::development_config()),
+			"local" => Box::new(chain_spec::local_testnet_config()),
+			"fir" | "flaming-fir" => Box::new(chain_spec::flaming_fir_config()?),
+			"staging" => Box::new(chain_spec::staging_testnet_config()),
+			path =>
+				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
+		};
+		Ok(spec)
+	}
+}
+
+
 impl sc_cli::ChainSpec for GenesisConfigWrapper {
     fn id(&self) -> &str {
         "genesis"
