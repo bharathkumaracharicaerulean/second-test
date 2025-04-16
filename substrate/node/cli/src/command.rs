@@ -32,7 +32,8 @@ use sp_runtime::{Storage, BuildStorage};
 
 
 use crate::service;
-use crate::cli::{Cli, Subcommand}; // Import Cli and Subcommand
+use crate::chain_spec;
+use crate::cli::*; // Import Cli and Subcommand
 
 /// Static empty value used as a placeholder for type erasure.
 static mut EMPTY: () = ();
@@ -76,7 +77,7 @@ impl SubstrateCli for Cli {
 			"dev" => Box::new(chain_spec::development_config()),
 			"local" => Box::new(chain_spec::local_testnet_config()),
 			"fir" | "flaming-fir" => Box::new(chain_spec::flaming_fir_config()?),
-			"staging" => Box::new(chain_spec::staging_testnet_config()),
+			"staging" => Box::new(chain_spec::local_testnet_config()),
 			path =>
 				Box::new(chain_spec::ChainSpec::from_json_file(std::path::PathBuf::from(path))?),
 		};

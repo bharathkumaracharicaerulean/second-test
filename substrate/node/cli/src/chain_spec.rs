@@ -46,6 +46,11 @@ impl Default for Extensions {
 	}
 }
 
+pub fn flaming_fir_config() -> Result<ChainSpec, String> {
+	ChainSpec::from_json_bytes(&include_bytes!("../res/flaming-fir.json")[..])
+}
+
+
 /// Implementation of ChainSpecExtension for the empty Extensions structure.
 /// This provides type-erased access to the extensions.
 impl ChainSpecExtension for Extensions {
